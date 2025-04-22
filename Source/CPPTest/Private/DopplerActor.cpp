@@ -92,7 +92,7 @@ void ADopplerActor::Tick(float DeltaTime)
 		FVector PlayerVelocity = Player->GetVelocity();
 		FVector PlayerToActor = (GetActorLocation() - Player->GetActorLocation()).GetSafeNormal();
 		float SpeedTowardsActor = PlayerVelocity.Dot(PlayerToActor);
-		float NewPitch = 1.0f + SpeedTowardsActor * 0.001f;
+		float NewPitch = 1.0f + SpeedTowardsActor * 0.0001f;
 		AudioComponent->SetPitchMultiplier(NewPitch);
 		UE_LOG(LogTemp, Warning, TEXT("NewPitch: %.2f"), NewPitch);
 		std::cout << NewPitch << std::endl;
