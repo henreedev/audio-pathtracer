@@ -1,0 +1,226 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+
+#include "FrequenSeeAudioComponent.h"
+#include "Components/AudioComponent.h"
+#include "EngineUtils.h"
+#include "GameFramework/DefaultPawn.h"
+#include "TimerManager.h"
+
+
+UFrequenSeeAudioComponent::UFrequenSeeAudioComponent()
+{
+	// PrimaryComponentTick.bCanEverTick = true;
+	// bAutoActivate = true; // Make sure it activates and starts ticking
+}
+
+// Called when the game starts or when spawned
+void UFrequenSeeAudioComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	Player = nullptr;
+	for (TActorIterator<APawn> It(GetWorld()); It; ++It)
+	{
+		Player = *It;
+		break; // Only need the first one
+	}
+
+	// Play this source's sound
+	Play();
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Yellow, FString::Printf(TEXT("BEGUN PLAY")));
+	}
+
+	// Activate(); // Force activate this component
+	// SetComponentTickEnabled(true);
+
+
+}
+
+void UFrequenSeeAudioComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	// Cast rays at only certain intervals
+	Timer -= DeltaTime;
+	if (Timer <= 0.0f)
+	{
+		// Reset timer
+		Timer = RaycastInterval;
+		
+		// Cast rays and update this source's volume
+		UpdateSound();
+	}
+}
+
+void DrawDebugLineWrapper(const UWorld* InWorld, 
+	FVector const& LineStart, 
+	FVector const& LineEnd, 
+	FColor const& Color, 
+	bool bPersistentLines = false, 
+	float LifeTime = -1, 
+	uint8 DepthPriority = 0, 
+	float Thickness = 0)
+{
+	
+}
+
+void UFrequenSeeAudioComponent::DebuggingDrawRay(FVector Start, FVector End, const UWorld* World, FHitResult Hit, bool bHit, int BouncesLeft, float Energy, bool HitPlayer)
+{
+
+	// Start and end colors
+	FLinearColor Green = FLinearColor(FColor::Green);
+	FLinearColor Red = FLinearColor(FColor::Red);
+
+	// Lerp in HSV space
+	FColor HitColor = FLinearColor::LerpUsingHSV(Green, Red, 1 - Energy).ToFColor(true);
+	if (HitPlayer)
+	{
+		HitColor = FColor::White;
+	}
+
+	int TotalBounces = RaycastBounces - BouncesLeft;
+	const float RayBounceInterval = 0.08f;
+	
+	FTimerHandle TimerHandle;
+	float Delay = TotalBounces * RayBounceInterval;
+
+	World->GetTimerManager().SetTimer(
+		TimerHandle,
+		FTimerDelegate::CreateLambda([=]()
+		{
+			DrawDebugLine(
+				World,
+				Start,
+				End,
+				bHit ? HitColor : FColor::Purple,
+				false,
+				RayBounceInterval * 3,
+				0,
+				1.0f * BouncesLeft
+			);
+		}),
+		Delay,
+		false
+	);
+	
+	if (bHit)
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Yellow, FString::Printf(TEXT("HIT??")));
+		}
+		// Ray hit something
+		AActor* HitActor = Hit.GetActor();
+		if (HitActor)
+		{
+			// Do something with the hit actor
+			// UE_LOG(LogTemp, Warning, TEXT("Hit actor: %s"), *HitActor->GetName());
+		}
+	}
+	else
+	{
+		// Ray did not hit anything
+		// UE_LOG(LogTemp, Warning, TEXT("Did not hit player."));
+	}
+}
+
+
+
+/*
+ * Returns the energy of an audio ray from this source from the player's perspective.
+ */
+float UFrequenSeeAudioComponent::CastAudioRay(FVector Dir, FVector StartPos, float MaxDistance, int Bounces, float Energy)
+{
+	if (Bounces == 0 || Energy <= 0.0f)
+	{
+		return 0.0f;
+	}
+
+	// Raycast recursively 
+	const FVector Start = StartPos;
+	FVector RayDir = Dir.GetSafeNormal();
+	bool HitPlayer = false;
+
+	UWorld* World = GetWorld();
+	FHitResult Hit;
+
+	// FVector End = FVector(0.1f) + RayDir * MaxDistance; // Adjust distance as needed
+	FVector End = Start + RayDir * MaxDistance; // Adjust distance as needed
+	if (World)
+	{
+		FCollisionQueryParams QueryParams;
+		QueryParams.AddIgnoredActor(GetOwner()); // Ignore the actor performing the trace
+
+		FCollisionObjectQueryParams ObjectParams;
+		ObjectParams.AddObjectTypesToQuery(ECC_Pawn);
+		ObjectParams.AddObjectTypesToQuery(ECC_WorldStatic); // covers walls/floors
+		ObjectParams.AddObjectTypesToQuery(ECC_WorldDynamic); // covers dynamic props
+
+		bool bHit = World->LineTraceSingleByObjectType(
+			Hit,
+			Start,
+			End,
+			ObjectParams,
+			QueryParams
+		);
+		
+		
+		if (bHit) {
+			if (Hit.GetActor()->IsA<ADefaultPawn>())
+			{
+				UE_LOG(LogTemp, Warning, TEXT("HIT THE PLAYER!!!"));
+				DebuggingDrawRay(Start, Hit.ImpactPoint, World, Hit, bHit, Bounces, Energy, true);
+				return Energy;
+			} else
+			{
+				// Did not hit the player;
+				// 1. Reduce energy TODO based on bounced material
+				auto OldEnergy = Energy;
+				Energy *= DampingFactor;
+				Energy = FMath::Clamp(Energy, 0.0f, 1.0f);
+				// 2. Calculate new bounce direction and recursively cast a ray using
+				UE_LOG(LogTemp, Warning, TEXT("%f, %f, %f"), Hit.ImpactPoint[0], Hit.ImpactPoint[1], Hit.ImpactPoint[2]);
+				FVector NewDir = FMath::GetReflectionVector(RayDir, Hit.ImpactNormal);
+				float DistanceLeft = MaxDistance - Hit.Distance;
+				FVector NewStart = Hit.ImpactPoint + Hit.ImpactNormal * 0.5f;
+				DebuggingDrawRay(Start, NewStart, World, Hit, bHit, Bounces, OldEnergy);
+				// UE_LOG(LogTemp, Warning, TEXT("CAST"));
+				return CastAudioRay(NewDir, NewStart, DistanceLeft, Bounces - 1, Energy);
+			}
+		} else {
+			// Return zero energy
+			DebuggingDrawRay(Start, End, World, Hit, bHit, Bounces, Energy);
+			return 0.0f;
+		}
+		
+	}
+
+	if (HitPlayer)
+	{
+		return Energy;		
+	} else
+	{
+		return 0.0f;
+	}
+}
+
+
+void UFrequenSeeAudioComponent::UpdateSound()
+{
+	float TotalEnergy = 0.0f;
+	for (int i = 0; i < RaycastsPerTick; i++)
+	{
+		auto RandDir = FMath::VRand();
+		float Energy = CastAudioRay(RandDir, GetComponentLocation(), RaycastDistance, RaycastBounces);
+		TotalEnergy += Energy;
+	}
+	TotalEnergy /= RaycastsPerTick;
+	// Set new volume. TODO Update this with more interesting functionality, like doing an IR on the sound buffer
+	VolumeMultiplier = FMath::Clamp(TotalEnergy, 0.0f, 1.0f);
+}
+
+

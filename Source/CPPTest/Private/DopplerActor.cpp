@@ -40,17 +40,6 @@ ADopplerActor::ADopplerActor()
 void ADopplerActor::BeginPlay()
 {
 	Super::BeginPlay();
-	// // Get the player character
-	// Player = UGameplayStatics::GetPlayerCharacter(GetWorld(), 0);
-	//
-	// if (Player)
-	// {
-	// 	UE_LOG(LogTemp, Warning, TEXT("Got the player: %s"), *Player->GetName());
-	// }
-	// else
-	// {
-	// 	UE_LOG(LogTemp, Warning, TEXT("Player not found"));
-	// }
 
 	Player = nullptr;
 	for (TActorIterator<APawn> It(GetWorld()); It; ++It)
@@ -64,18 +53,10 @@ void ADopplerActor::BeginPlay()
 		UE_LOG(LogTemp, Warning, TEXT("Found first pawn: %s"), *Player->GetName());
 	}
 	
-	// UE_LOG(LogTemp, Warning, TEXT("NewPitch: %.2i"), 1);
-	// std::cout << 1 << std::endl;
-	// if (GEngine)
-	// {
-	// 	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Yellow, FString::Printf(TEXT("NewPitch: %.2i"), 1));
-	// }
-	
 	if (SoundCue)
 	{
 		AudioComponent->SetSound(SoundCue);
 		AudioComponent->Play();
-		// SoundCue.Get
 	}
 
 }
@@ -140,13 +121,13 @@ void ADopplerActor::Tick(float DeltaTime)
 				if (HitActor)
 				{
 					// Do something with the hit actor
-					UE_LOG(LogTemp, Warning, TEXT("Hit actor: %s"), *HitActor->GetName());
+					// UE_LOG(LogTemp, Warning, TEXT("Hit actor: %s"), *HitActor->GetName());
 				}
 			}
 			else
 			{
 				// Ray did not hit anything
-				UE_LOG(LogTemp, Warning, TEXT("Did not hit player."));
+				// UE_LOG(LogTemp, Warning, TEXT("Did not hit player."));
 			}
 		}
 		
