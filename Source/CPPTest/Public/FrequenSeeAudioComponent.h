@@ -35,6 +35,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FrequenSeeAudioComponent")
 	float DampingFactor = 0.7f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FrequenSeeAudioComponent")
+	float AbsorbtionFactor = 0.0002f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FrequenSeeAudioComponent")
+	float AbsorbtionFactorAir = 0.0005f;
+
 	UPROPERTY(VisibleAnywhere)
 	APawn* Player;
 
@@ -48,11 +54,18 @@ public:
 	 */
 	float CastAudioRay(FVector Dir, FVector StartPos, float MaxDistance, int Bounces, float Energy = 1.0f);
 
+	/*
+	 * Calculates the attenuation factor based on direct rays and transmittance.
+	 */
+	float CastDirectAudioRay(FVector Dir, FVector StartPos, float MaxDistance, int Bounces = 1, float Energy = 1.0f, AActor* DirectHitActor = nullptr);
+
 	void DebuggingDrawRay(FVector Start, FVector End, const UWorld* World, FHitResult Hit, bool bHit, int BouncesLeft, float Energy, bool HitPlayer = false);
 	/*
 	 * Casts audio rays, adjusting the current output volume based on the average sound energy received by the listener.
 	 */
 	void UpdateSound();
+
+	float GetOcclusionAttenuation() const { return OcclusionAttenuation; }
 
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -62,6 +75,6 @@ public:
 
 private:
 	float Timer = 0.0f;
-
+	float OcclusionAttenuation = 1.f;
 
 };

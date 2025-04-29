@@ -111,7 +111,7 @@ void UFrequenSeeAudioComponent::DebuggingDrawRay(FVector Start, FVector End, con
 	{
 		if (GEngine)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Yellow, FString::Printf(TEXT("HIT??")));
+			// GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Yellow, FString::Printf(TEXT("HIT??")));
 		}
 		// Ray hit something
 		AActor* HitActor = Hit.GetActor();
@@ -182,13 +182,23 @@ float UFrequenSeeAudioComponent::CastAudioRay(FVector Dir, FVector StartPos, flo
 				auto OldEnergy = Energy;
 				Energy *= DampingFactor;
 				Energy = FMath::Clamp(Energy, 0.0f, 1.0f);
+				float DistanceLeft = MaxDistance - Hit.Distance;
+
+				// Direct ray to player - how much does the material absorb, how much continues, how much bounces?
+				FVector DirToPlayer = Player->GetActorLocation() - Hit.ImpactPoint;
+				DirToPlayer.Normalize();
+				// float DirectEnergy = CastDirectAudioRay(DirToPlayer, Hit.ImpactPoint, DistanceLeft, 1, Energy);
+				
 				// 2. Calculate new bounce direction and recursively cast a ray using
 				UE_LOG(LogTemp, Warning, TEXT("%f, %f, %f"), Hit.ImpactPoint[0], Hit.ImpactPoint[1], Hit.ImpactPoint[2]);
 				FVector NewDir = FMath::GetReflectionVector(RayDir, Hit.ImpactNormal);
-				float DistanceLeft = MaxDistance - Hit.Distance;
 				FVector NewStart = Hit.ImpactPoint + Hit.ImpactNormal * 0.5f;
+
+				
 				DebuggingDrawRay(Start, NewStart, World, Hit, bHit, Bounces, OldEnergy);
 				// UE_LOG(LogTemp, Warning, TEXT("CAST"));
+
+				
 				return CastAudioRay(NewDir, NewStart, DistanceLeft, Bounces - 1, Energy);
 			}
 		} else {
@@ -208,6 +218,70 @@ float UFrequenSeeAudioComponent::CastAudioRay(FVector Dir, FVector StartPos, flo
 	}
 }
 
+float UFrequenSeeAudioComponent::CastDirectAudioRay(FVector Dir, FVector StartPos, float MaxDistance, int Bounces,
+	float Energy, AActor* DirectHitActor)
+{
+	if (Bounces == 0 || Energy <= 0.0f)
+	{
+		return 0.0f;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return 0.0f;
+	}
+	
+	FHitResult Hit;
+	FCollisionQueryParams QueryParams;
+	// hack
+	QueryParams.AddIgnoredActor(DirectHitActor);
+	FCollisionObjectQueryParams ObjectParams;
+	ObjectParams.AddObjectTypesToQuery(ECC_Pawn);
+	ObjectParams.AddObjectTypesToQuery(ECC_WorldStatic); // covers walls/floors
+	ObjectParams.AddObjectTypesToQuery(ECC_WorldDynamic); // covers dynamic props
+
+	FVector DirectStart = StartPos + Dir * 0.1f;
+	FVector DirectEnd = DirectStart + Dir * MaxDistance;
+		
+	bool bDirectHit = World->LineTraceSingleByObjectType(
+		Hit,
+		DirectStart,
+		DirectEnd,
+		ObjectParams,
+		QueryParams
+	);
+	DebuggingDrawRay(DirectStart, Hit.ImpactPoint, World, Hit, bDirectHit, Bounces, Energy);
+
+	// NOTE: energy adjustments due to air should be accumulated (the distance rather) and calculated later based on the distance
+	if (bDirectHit)
+	{
+		// moved inside the wall -> currently doesn't work
+		if (Hit.GetActor() == DirectHitActor) 
+		{
+			// Energy *= (1.f - AbsorbtionFactor * fmax(Hit.Distance, 1.0f));
+			return CastDirectAudioRay(Dir, Hit.ImpactPoint, MaxDistance - Hit.Distance, Bounces, Energy, Hit.GetActor());
+		}
+		// hit the player
+		if (Hit.GetActor()->IsA<ADefaultPawn>())
+		{
+			// Energy *= (1.f - AbsorbtionFactorAir * fmax(Hit.Distance, 1.0f));
+			// DebuggingDrawRay(DirectStart, Hit.ImpactPoint, World, Hit, bDirectHit, Bounces, Energy, true);
+			return Energy;
+		}
+		// hit a different obstacle, continue through it if there's distance or bounces
+		else 
+		{
+			// Energy *= (1.f - AbsorbtionFactorAir * fmax(Hit.Distance, 1.0f));
+			// DebuggingDrawRay(DirectStart, Hit.ImpactPoint, World, Hit, bDirectHit, Bounces, Energy);
+			return CastDirectAudioRay(Dir, Hit.ImpactPoint, MaxDistance - Hit.Distance, Bounces - 1, Energy, Hit.GetActor());
+		}
+	}
+	
+	// no hit
+	return 0.0f;
+}
+
 
 void UFrequenSeeAudioComponent::UpdateSound()
 {
@@ -215,10 +289,15 @@ void UFrequenSeeAudioComponent::UpdateSound()
 	for (int i = 0; i < RaycastsPerTick; i++)
 	{
 		auto RandDir = FMath::VRand();
-		float Energy = CastAudioRay(RandDir, GetComponentLocation(), RaycastDistance, RaycastBounces);
-		TotalEnergy += Energy;
+		// float Energy = CastAudioRay(RandDir, GetComponentLocation(), RaycastDistance, RaycastBounces);
+		// TotalEnergy += Energy;
 	}
 	TotalEnergy /= RaycastsPerTick;
+
+	FVector DirToPlayer = Player->GetActorLocation() - GetComponentLocation();
+	DirToPlayer.Normalize();
+	OcclusionAttenuation = CastDirectAudioRay(DirToPlayer, GetComponentLocation(), RaycastDistance, 10, 1.0f, GetOwner());
+	
 	// Set new volume. TODO Update this with more interesting functionality, like doing an IR on the sound buffer
 	VolumeMultiplier = FMath::Clamp(TotalEnergy, 0.0f, 1.0f);
 }

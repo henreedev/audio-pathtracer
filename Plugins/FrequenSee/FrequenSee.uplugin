@@ -1,0 +1,17 @@
+{
+  "FileVersion" : 1,
+  "Version" : 1,
+  "FriendlyName" : "FrequenSee",
+  "Description" : "Physically-based sound rendering.",
+  "Category" : "Audio",
+  "EnabledByDefault" : true,
+  "Modules" :
+  [
+    {
+      "Name": "FrequenSee",
+      "Type": "Runtime",
+      "LoadingPhase": "PreDefault",
+      "WhitelistPlatforms": [ "Win64", "Linux", "Mac", "Android", "IOS" ]
+    }
+  ]
+}
