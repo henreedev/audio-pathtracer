@@ -1,3 +1,11 @@
 #include "FrequenSeeAudioOcclusionSettings.h"
 
-// UFrequenSeeAudioOcclusionSettings::UFrequenSeeAudioOcclusionSettings() {}
+UFrequenSeeAudioOcclusionSettings::UFrequenSeeAudioOcclusionSettings()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Creating new occlusion settings"));
+}
+
+// UFrequenSeeAudioOcclusionSettings::~UFrequenSeeAudioOcclusionSettings()
+// {
+// 	
+// }

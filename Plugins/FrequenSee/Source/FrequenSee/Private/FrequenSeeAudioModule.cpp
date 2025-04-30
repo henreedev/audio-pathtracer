@@ -15,5 +15,6 @@ void FFrequenSeeAudioModule::StartupModule()
 	check(Plugin);
 	
 	OcclusionPluginFactory = MakeUnique<FFrequenSeeAudioOcclusionPluginFactory>();
+	// auto c = OcclusionPluginFactory->GetCustomOcclusionSettingsClass();
 	IModularFeatures::Get().RegisterModularFeature(FFrequenSeeAudioOcclusionPluginFactory::GetModularFeatureName(), OcclusionPluginFactory.Get());
 }

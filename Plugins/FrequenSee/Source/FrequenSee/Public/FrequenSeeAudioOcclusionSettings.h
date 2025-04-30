@@ -2,11 +2,12 @@
 
 #include "FrequenSeeAudioOcclusionSettings.generated.h"
 
-UCLASS()
-class UFrequenSeeAudioOcclusionSettings : public UOcclusionPluginSourceSettingsBase
+UCLASS(EditInlineNew, DefaultToInstanced, CollapseCategories, BlueprintType)
+class FREQUENSEE_API UFrequenSeeAudioOcclusionSettings : public UOcclusionPluginSourceSettingsBase
 {
 	GENERATED_BODY()
 
+	UFrequenSeeAudioOcclusionSettings();
 public:
 	
 	

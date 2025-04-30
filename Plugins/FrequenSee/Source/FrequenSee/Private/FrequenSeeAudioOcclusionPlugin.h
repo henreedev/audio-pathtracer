@@ -35,4 +35,9 @@ public:
 
 	/** Instantiates the occlusion plugin. */
 	virtual TAudioOcclusionPtr CreateNewOcclusionPlugin(FAudioDevice* OwningDevice) override;
+	
+	/**
+	* @return the UClass type of your settings for occlusion. This allows us to only pass in user settings for your plugin.
+	*/
+	virtual UClass* GetCustomOcclusionSettingsClass() const override;
 };

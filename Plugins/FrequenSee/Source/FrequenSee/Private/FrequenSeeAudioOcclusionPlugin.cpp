@@ -1,4 +1,6 @@
 #include "FrequenSeeAudioOcclusionPlugin.h"
+
+#include "FrequenSeeAudioOcclusionSettings.h"
 #include "Components/AudioComponent.h"
 #include "GameFramework/Actor.h"
 #include "HAL/UnrealMemory.h"
@@ -67,4 +69,9 @@ TAudioOcclusionPtr FFrequenSeeAudioOcclusionPluginFactory::CreateNewOcclusionPlu
     UE_LOG(LogTemp, Warning, TEXT("Creating new occlusion plugin"));
     
     return MakeShared<FrequenSeeAudioOcclusionPlugin>();
+}
+
+UClass* FFrequenSeeAudioOcclusionPluginFactory::GetCustomOcclusionSettingsClass() const
+{
+    return UFrequenSeeAudioOcclusionSettings::StaticClass();    
 }

@@ -4,6 +4,7 @@
 #include "FrequenSeeAudioComponent.h"
 #include "Components/AudioComponent.h"
 #include "EngineUtils.h"
+#include "FrequenSeeAudioOcclusionSettings.h"
 #include "GameFramework/DefaultPawn.h"
 #include "TimerManager.h"
 #include "Components/SphereComponent.h"
@@ -13,6 +14,19 @@ UFrequenSeeAudioComponent::UFrequenSeeAudioComponent()
 {
 	// PrimaryComponentTick.bCanEverTick = true;
 	// bAutoActivate = true; // Make sure it activates and starts ticking
+
+
+	bOverrideAttenuation = true;
+
+	// Create new instance of your occlusion settings object
+	UFrequenSeeAudioOcclusionSettings* OcclusionSettings = CreateDefaultSubobject<UFrequenSeeAudioOcclusionSettings>(TEXT("OcclusionSettings"));
+
+	// Assign the new instance to the occlusion plugin settings array
+	AttenuationOverrides.PluginSettings.OcclusionPluginSettingsArray.Empty();
+	AttenuationOverrides.PluginSettings.OcclusionPluginSettingsArray.Add(OcclusionSettings);
+
+	// You can also tweak other settings here if needed
+	AttenuationOverrides.bEnableOcclusion = true;
 }
 
 // Called when the game starts or when spawned
@@ -28,7 +42,7 @@ void UFrequenSeeAudioComponent::BeginPlay()
 	}
 
 	// Make player's hitbox bigger
-	Player->GetCollisionComponent()->SetRelativeScale3D(FVector(5.0f, 5.0f, 5.0f));
+	Player->GetCollisionComponent()->SetRelativeScale3D(FVector(15.0f, 15.0f, 15.0f));
 
 	// Play this source's sound
 	Play();
@@ -176,7 +190,7 @@ float UFrequenSeeAudioComponent::CastAudioRay(FVector Dir, FVector StartPos, flo
 		if (bHit) {
 			if (Hit.GetActor()->IsA<ADefaultPawn>())
 			{
-				UE_LOG(LogTemp, Warning, TEXT("HIT THE PLAYER!!!"));
+				// UE_LOG(LogTemp, Warning, TEXT("HIT THE PLAYER!!!"));
 				DebuggingDrawRay(Start, Hit.ImpactPoint, World, Hit, bHit, Bounces, Energy, true);
 				return Energy;
 			} else
@@ -194,7 +208,7 @@ float UFrequenSeeAudioComponent::CastAudioRay(FVector Dir, FVector StartPos, flo
 				// float DirectEnergy = CastDirectAudioRay(DirToPlayer, Hit.ImpactPoint, DistanceLeft, 1, Energy);
 				
 				// 2. Calculate new bounce direction and recursively cast a ray using
-				UE_LOG(LogTemp, Warning, TEXT("%f, %f, %f"), Hit.ImpactPoint[0], Hit.ImpactPoint[1], Hit.ImpactPoint[2]);
+				// UE_LOG(LogTemp, Warning, TEXT("%f, %f, %f"), Hit.ImpactPoint[0], Hit.ImpactPoint[1], Hit.ImpactPoint[2]);
 				FVector NewDir = FMath::GetReflectionVector(RayDir, Hit.ImpactNormal);
 				FVector NewStart = Hit.ImpactPoint + Hit.ImpactNormal * 0.5f;
 

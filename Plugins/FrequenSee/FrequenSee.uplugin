@@ -13,5 +13,8 @@
       "LoadingPhase": "PreDefault",
       "WhitelistPlatforms": [ "Win64", "Linux", "Mac", "Android", "IOS" ]
     }
-  ]
+  ],
+  "AudioPlugins": {
+    "Occlusion": "FrequenSee"
+  }
 }
