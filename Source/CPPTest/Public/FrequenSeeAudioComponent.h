@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/AudioComponent.h"
+#include "GameFramework/DefaultPawn.h"
 #include "FrequenSeeAudioComponent.generated.h"
 
 /**
@@ -42,7 +43,7 @@ public:
 	float AbsorbtionFactorAir = 0.0005f;
 
 	UPROPERTY(VisibleAnywhere)
-	APawn* Player;
+	ADefaultPawn* Player;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FrequenSeeAudioComponent")
 	float RaycastInterval = 1.0f;

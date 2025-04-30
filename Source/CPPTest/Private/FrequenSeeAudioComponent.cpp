@@ -6,6 +6,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/DefaultPawn.h"
 #include "TimerManager.h"
+#include "Components/SphereComponent.h"
 
 
 UFrequenSeeAudioComponent::UFrequenSeeAudioComponent()
@@ -22,9 +23,12 @@ void UFrequenSeeAudioComponent::BeginPlay()
 	Player = nullptr;
 	for (TActorIterator<APawn> It(GetWorld()); It; ++It)
 	{
-		Player = *It;
+		Player = Cast<ADefaultPawn>(*It);
 		break; // Only need the first one
 	}
+
+	// Make player's hitbox bigger
+	Player->GetCollisionComponent()->SetRelativeScale3D(FVector(5.0f, 5.0f, 5.0f));
 
 	// Play this source's sound
 	Play();
@@ -87,7 +91,7 @@ void UFrequenSeeAudioComponent::DebuggingDrawRay(FVector Start, FVector End, con
 	
 	FTimerHandle TimerHandle;
 	float Delay = TotalBounces * RayBounceInterval;
-
+	
 	World->GetTimerManager().SetTimer(
 		TimerHandle,
 		FTimerDelegate::CreateLambda([=]()
@@ -103,7 +107,7 @@ void UFrequenSeeAudioComponent::DebuggingDrawRay(FVector Start, FVector End, con
 				1.0f * BouncesLeft
 			);
 		}),
-		Delay,
+		Delay == 0 ? 0.01f : Delay,
 		false
 	);
 	
@@ -289,8 +293,8 @@ void UFrequenSeeAudioComponent::UpdateSound()
 	for (int i = 0; i < RaycastsPerTick; i++)
 	{
 		auto RandDir = FMath::VRand();
-		// float Energy = CastAudioRay(RandDir, GetComponentLocation(), RaycastDistance, RaycastBounces);
-		// TotalEnergy += Energy;
+		float Energy = CastAudioRay(RandDir, GetComponentLocation(), RaycastDistance, RaycastBounces);
+		TotalEnergy += Energy;
 	}
 	TotalEnergy /= RaycastsPerTick;
 
@@ -299,7 +303,7 @@ void UFrequenSeeAudioComponent::UpdateSound()
 	OcclusionAttenuation = CastDirectAudioRay(DirToPlayer, GetComponentLocation(), RaycastDistance, 10, 1.0f, GetOwner());
 	
 	// Set new volume. TODO Update this with more interesting functionality, like doing an IR on the sound buffer
-	VolumeMultiplier = FMath::Clamp(TotalEnergy, 0.0f, 1.0f);
+	SetVolumeMultiplier(FMath::Clamp(TotalEnergy, 0.0f, 1.0f));
 }
 
 
