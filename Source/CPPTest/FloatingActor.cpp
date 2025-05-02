@@ -30,12 +30,12 @@ void AFloatingActor::BeginPlay()
 void AFloatingActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	FVector NewLocation = GetActorLocation();
-	FRotator NewRotation = GetActorRotation();
-	float RunningTime = GetGameTimeSinceCreation();
-	float DeltaHeight = (FMath::Sin(RunningTime + DeltaTime) - FMath::Sin(RunningTime));
-	NewLocation.Z += DeltaHeight * FloatSpeed;	 // Scale our height by a factor of 20
-	float DeltaRotation = DeltaTime * RotationSpeed; // Rotate by 20 degrees per second
-	NewRotation.Yaw += DeltaRotation;
-	SetActorLocationAndRotation(NewLocation, NewRotation);
+	// FVector NewLocation = GetActorLocation();
+	// FRotator NewRotation = GetActorRotation();
+	// float RunningTime = GetGameTimeSinceCreation();
+	// float DeltaHeight = (FMath::Sin(RunningTime + DeltaTime) - FMath::Sin(RunningTime));
+	// NewLocation.Z += DeltaHeight * FloatSpeed;	 // Scale our height by a factor of 20
+	// float DeltaRotation = DeltaTime * RotationSpeed; // Rotate by 20 degrees per second
+	// NewRotation.Yaw += DeltaRotation;
+	// SetActorLocationAndRotation(NewLocation, NewRotation);
 }

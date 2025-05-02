@@ -7,6 +7,7 @@
 #include "GameFramework/DefaultPawn.h"
 #include "FrequenSeeAudioComponent.generated.h"
 
+class UFrequenSeeAudioOcclusionSettings;
 /**
  * UFrequenSeeAudioComponent is an audio component designed to simulate raycast-based sound propagation
  * and environmental audio interaction. This class enables functionality such as audio raycasting,
@@ -20,6 +21,11 @@ class CPPTEST_API UFrequenSeeAudioComponent : public UAudioComponent
 public:
 
 	UFrequenSeeAudioComponent();
+
+	~UFrequenSeeAudioComponent();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FrequenSeeAudioComponent")
+	UFrequenSeeAudioOcclusionSettings* OcclusionSettings;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FrequenSeeAudioComponent")
 	bool bIsRaycasting = false;

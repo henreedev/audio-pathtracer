@@ -19,7 +19,7 @@ UFrequenSeeAudioComponent::UFrequenSeeAudioComponent()
 	bOverrideAttenuation = true;
 
 	// Create new instance of your occlusion settings object
-	UFrequenSeeAudioOcclusionSettings* OcclusionSettings = CreateDefaultSubobject<UFrequenSeeAudioOcclusionSettings>(TEXT("OcclusionSettings"));
+	OcclusionSettings = CreateDefaultSubobject<UFrequenSeeAudioOcclusionSettings>(TEXT("OcclusionSettings"));
 
 	// Assign the new instance to the occlusion plugin settings array
 	AttenuationOverrides.PluginSettings.OcclusionPluginSettingsArray.Empty();
@@ -27,6 +27,11 @@ UFrequenSeeAudioComponent::UFrequenSeeAudioComponent()
 
 	// You can also tweak other settings here if needed
 	AttenuationOverrides.bEnableOcclusion = true;
+}
+
+UFrequenSeeAudioComponent::~UFrequenSeeAudioComponent()
+{
+	AttenuationOverrides.PluginSettings.OcclusionPluginSettingsArray.Empty();
 }
 
 // Called when the game starts or when spawned
@@ -42,7 +47,7 @@ void UFrequenSeeAudioComponent::BeginPlay()
 	}
 
 	// Make player's hitbox bigger
-	Player->GetCollisionComponent()->SetRelativeScale3D(FVector(15.0f, 15.0f, 15.0f));
+	// Player->GetCollisionComponent()->SetRelativeScale3D(FVector(15.0f, 15.0f, 15.0f));
 
 	// Play this source's sound
 	Play();
@@ -106,10 +111,10 @@ void UFrequenSeeAudioComponent::DebuggingDrawRay(FVector Start, FVector End, con
 	FTimerHandle TimerHandle;
 	float Delay = TotalBounces * RayBounceInterval;
 	
-	World->GetTimerManager().SetTimer(
-		TimerHandle,
-		FTimerDelegate::CreateLambda([=]()
-		{
+	// World->GetTimerManager().SetTimer(
+	// 	TimerHandle,
+	// 	FTimerDelegate::CreateLambda([=]()
+	// 	{
 			DrawDebugLine(
 				World,
 				Start,
@@ -120,10 +125,10 @@ void UFrequenSeeAudioComponent::DebuggingDrawRay(FVector Start, FVector End, con
 				0,
 				1.0f * BouncesLeft
 			);
-		}),
-		Delay == 0 ? 0.01f : Delay,
-		false
-	);
+	// 	}),
+	// 	Delay == 0 ? 0.01f : Delay,
+	// 	false
+	// );
 	
 	if (bHit)
 	{
@@ -306,15 +311,16 @@ void UFrequenSeeAudioComponent::UpdateSound()
 	float TotalEnergy = 0.0f;
 	for (int i = 0; i < RaycastsPerTick; i++)
 	{
-		auto RandDir = FMath::VRand();
+		// auto RandDir = FMath::VRandCone(FVector(-1.0f, 0.0f, 0.0f), PI / 4.0f, 0.0001f); // help
+		auto RandDir = FVector(0.0f, -1.0f, 0.0f).RotateAngleAxis(i * 165.0f / RaycastsPerTick + FMath::RandRange(0.0f, 0.5f), FVector(0.0f, 0.0f, 1.0f));
 		float Energy = CastAudioRay(RandDir, GetComponentLocation(), RaycastDistance, RaycastBounces);
 		TotalEnergy += Energy;
 	}
 	TotalEnergy /= RaycastsPerTick;
 
-	FVector DirToPlayer = Player->GetActorLocation() - GetComponentLocation();
-	DirToPlayer.Normalize();
-	OcclusionAttenuation = CastDirectAudioRay(DirToPlayer, GetComponentLocation(), RaycastDistance, 10, 1.0f, GetOwner());
+	// FVector DirToPlayer = Player->GetActorLocation() - GetComponentLocation();
+	// DirToPlayer.Normalize();
+	// OcclusionAttenuation = CastDirectAudioRay(DirToPlayer, GetComponentLocation(), RaycastDistance, 10, 1.0f, GetOwner());
 	
 	// Set new volume. TODO Update this with more interesting functionality, like doing an IR on the sound buffer
 	SetVolumeMultiplier(FMath::Clamp(TotalEnergy, 0.0f, 1.0f));
