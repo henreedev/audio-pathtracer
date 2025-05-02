@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.IO;
+using System.Collections.Generic;
 
 public class CPPTest : ModuleRules
 {
@@ -8,10 +10,18 @@ public class CPPTest : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput" });
+		PublicDependencyModuleNames.AddRange(new string[] { 
+            "Core",
+            "CoreUObject",
+            "Engine",
+            "InputCore",
+            "EnhancedInput",
+            "AudioMixer" 
+        });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "FrequenSee" });
-
+		PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "ThirdParty", "KissFFT"));
+		
 		// Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
 		
