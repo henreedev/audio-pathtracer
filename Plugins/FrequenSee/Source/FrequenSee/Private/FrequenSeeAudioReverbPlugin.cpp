@@ -112,6 +112,30 @@ UClass* FFrequenSeeAudioReverbPluginFactory::GetCustomReverbSettingsClass() cons
 	return UFrequenSeeAudioReverbSettings::StaticClass();
 }
 
+FFrequenSeeAudioReverbSubmixPlugin::FFrequenSeeAudioReverbSubmixPlugin() {}
+
+FFrequenSeeAudioReverbSubmixPlugin::~FFrequenSeeAudioReverbSubmixPlugin() {}
+
+/** Returns the number of channels to use for input and output. */
+uint32 FFrequenSeeAudioReverbSubmixPlugin::GetDesiredInputChannelCountOverride() const
+{
+	return 2;
+}
+
+/** Processes the audio flowing through the submix. */
+void FFrequenSeeAudioReverbSubmixPlugin::OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData)
+{
+
+
+	
+}
+
+/** Called to specify the singleton reverb plugin instance. */
+void FFrequenSeeAudioReverbSubmixPlugin::SetReverbPlugin(FFrequenSeeAudioReverbPlugin* Plugin)
+{
+	ReverbPlugin = Plugin;
+}
+
 FFrequenSeeAudioReverbSubmixPluginSettings::FFrequenSeeAudioReverbSubmixPluginSettings()
 	: bApplyReverb(true)
 {}

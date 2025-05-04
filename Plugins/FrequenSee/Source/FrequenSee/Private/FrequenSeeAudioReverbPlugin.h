@@ -87,6 +87,9 @@ public:
 
 	/** Called to specify the singleton reverb plugin instance. */
 	void SetReverbPlugin(FFrequenSeeAudioReverbPlugin* Plugin);
+
+private:
+	FFrequenSeeAudioReverbPlugin* ReverbPlugin;
 };
 
 USTRUCT(BlueprintType)
