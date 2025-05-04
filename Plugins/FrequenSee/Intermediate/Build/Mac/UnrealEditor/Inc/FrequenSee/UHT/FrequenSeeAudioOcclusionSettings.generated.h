@@ -24,8 +24,6 @@ public: \
 
 
 #define FID_emrearslan_Desktop_hw_cs2240_audio_pathtracer_Plugins_FrequenSee_Source_FrequenSee_Public_FrequenSeeAudioOcclusionSettings_h_8_ENHANCED_CONSTRUCTORS \
-	/** Standard constructor, called after all reflected properties have been initialized */ \
-	NO_API UFrequenSeeAudioOcclusionSettings(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get()); \
 private: \
 	/** Private move- and copy-constructors, should never be used */ \
 	UFrequenSeeAudioOcclusionSettings(UFrequenSeeAudioOcclusionSettings&&); \
@@ -33,7 +31,7 @@ private: \
 public: \
 	DECLARE_VTABLE_PTR_HELPER_CTOR(NO_API, UFrequenSeeAudioOcclusionSettings); \
 	DEFINE_VTABLE_PTR_HELPER_CTOR_CALLER(UFrequenSeeAudioOcclusionSettings); \
-	DEFINE_DEFAULT_OBJECT_INITIALIZER_CONSTRUCTOR_CALL(UFrequenSeeAudioOcclusionSettings) \
+	DEFINE_DEFAULT_CONSTRUCTOR_CALL(UFrequenSeeAudioOcclusionSettings) \
 	NO_API virtual ~UFrequenSeeAudioOcclusionSettings();
 
 

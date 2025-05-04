@@ -5,6 +5,7 @@
 #include "Components/AudioComponent.h"
 #include "EngineUtils.h"
 #include "FrequenSeeAudioOcclusionSettings.h"
+#include "FrequenSeeAudioReverbSettings.h"
 #include "GameFramework/DefaultPawn.h"
 #include "TimerManager.h"
 #include "Components/SphereComponent.h"
@@ -14,8 +15,7 @@ UFrequenSeeAudioComponent::UFrequenSeeAudioComponent()
 {
 	// PrimaryComponentTick.bCanEverTick = true;
 	// bAutoActivate = true; // Make sure it activates and starts ticking
-
-
+	
 	bOverrideAttenuation = true;
 
 	// Create new instance of your occlusion settings object
@@ -24,14 +24,26 @@ UFrequenSeeAudioComponent::UFrequenSeeAudioComponent()
 	// Assign the new instance to the occlusion plugin settings array
 	AttenuationOverrides.PluginSettings.OcclusionPluginSettingsArray.Empty();
 	AttenuationOverrides.PluginSettings.OcclusionPluginSettingsArray.Add(OcclusionSettings);
-
+	
 	// You can also tweak other settings here if needed
 	AttenuationOverrides.bEnableOcclusion = true;
+
+	ReverbSettings = CreateDefaultSubobject<UFrequenSeeAudioReverbSettings>(TEXT("ReverbSettings"));
+
+	AttenuationOverrides.PluginSettings.ReverbPluginSettingsArray.Empty();
+	AttenuationOverrides.PluginSettings.ReverbPluginSettingsArray.Add(ReverbSettings);
+
+	EnergyBuffer.SetNum(NumChannels);
+	for (int Channel = 0; Channel < NumChannels; ++Channel)
+	{
+		EnergyBuffer[Channel].Init(0.0f, NumSamples);
+	}
 }
 
 UFrequenSeeAudioComponent::~UFrequenSeeAudioComponent()
 {
 	AttenuationOverrides.PluginSettings.OcclusionPluginSettingsArray.Empty();
+	AttenuationOverrides.PluginSettings.ReverbPluginSettingsArray.Empty();
 }
 
 // Called when the game starts or when spawned
@@ -206,11 +218,16 @@ float UFrequenSeeAudioComponent::CastAudioRay(FVector Dir, FVector StartPos, flo
 				Energy *= DampingFactor;
 				Energy = FMath::Clamp(Energy, 0.0f, 1.0f);
 				float DistanceLeft = MaxDistance - Hit.Distance;
+				float TravelTime = (RaycastDistance - DistanceLeft) / 343.0f;
+				if (TravelTime > SimulatedDuration)
+				{
+					return 0.0f;
+				}
 
 				// Direct ray to player - how much does the material absorb, how much continues, how much bounces?
 				FVector DirToPlayer = Player->GetActorLocation() - Hit.ImpactPoint;
 				DirToPlayer.Normalize();
-				// float DirectEnergy = CastDirectAudioRay(DirToPlayer, Hit.ImpactPoint, DistanceLeft, 1, Energy);
+				float DirectEnergy = CastDirectAudioRay(DirToPlayer, Hit.ImpactPoint, DistanceLeft, 1, Energy);
 				
 				// 2. Calculate new bounce direction and recursively cast a ray using
 				// UE_LOG(LogTemp, Warning, TEXT("%f, %f, %f"), Hit.ImpactPoint[0], Hit.ImpactPoint[1], Hit.ImpactPoint[2]);
@@ -290,6 +307,15 @@ float UFrequenSeeAudioComponent::CastDirectAudioRay(FVector Dir, FVector StartPo
 		{
 			// Energy *= (1.f - AbsorbtionFactorAir * fmax(Hit.Distance, 1.0f));
 			// DebuggingDrawRay(DirectStart, Hit.ImpactPoint, World, Hit, bDirectHit, Bounces, Energy, true);
+			float TravelTime = (RaycastDistance - MaxDistance + Hit.Distance) / 343.0f;
+			if (TravelTime > SimulatedDuration)
+			{
+				return 0.0f;
+			}
+			// not sure about channels
+			Accumulate(TravelTime, Energy, 0);
+			Accumulate(TravelTime, Energy, 1);
+			
 			return Energy;
 		}
 		// hit a different obstacle, continue through it if there's distance or bounces
@@ -308,6 +334,9 @@ float UFrequenSeeAudioComponent::CastDirectAudioRay(FVector Dir, FVector StartPo
 
 void UFrequenSeeAudioComponent::UpdateSound()
 {
+	// not sure
+	ClearEnergyBuffer();
+	
 	float TotalEnergy = 0.0f;
 	for (int i = 0; i < RaycastsPerTick; i++)
 	{
@@ -318,12 +347,31 @@ void UFrequenSeeAudioComponent::UpdateSound()
 	}
 	TotalEnergy /= RaycastsPerTick;
 
-	// FVector DirToPlayer = Player->GetActorLocation() - GetComponentLocation();
-	// DirToPlayer.Normalize();
-	// OcclusionAttenuation = CastDirectAudioRay(DirToPlayer, GetComponentLocation(), RaycastDistance, 10, 1.0f, GetOwner());
+	FVector DirToPlayer = Player->GetActorLocation() - GetComponentLocation();
+	DirToPlayer.Normalize();
+	OcclusionAttenuation = CastDirectAudioRay(DirToPlayer, GetComponentLocation(), RaycastDistance, 10, 1.0f, GetOwner());
 	
 	// Set new volume. TODO Update this with more interesting functionality, like doing an IR on the sound buffer
 	SetVolumeMultiplier(FMath::Clamp(TotalEnergy, 0.0f, 1.0f));
+}
+
+void UFrequenSeeAudioComponent::ClearEnergyBuffer()
+{
+	for (auto& ChannelBuffer : EnergyBuffer)
+	{
+		FMemory::Memset(ChannelBuffer.GetData(), 0, sizeof(float) * ChannelBuffer.Num());
+	}
+}
+
+void UFrequenSeeAudioComponent::Accumulate(float TimeSeconds, float Value, int32 Channel)
+{
+	if (Channel >= NumChannels || Channel < 0) return;
+
+	int32 Index = FMath::RoundToInt(TimeSeconds * SampleRate);
+	if (Index >= 0 && Index < NumSamples)
+	{
+		EnergyBuffer[Channel][Index] += Value;
+	}
 }
 
 

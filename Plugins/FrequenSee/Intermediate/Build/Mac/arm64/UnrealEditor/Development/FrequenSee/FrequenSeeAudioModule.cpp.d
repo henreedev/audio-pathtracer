@@ -3979,6 +3979,9 @@
   Runtime/Engine/Classes/Sound/SoundSubmixSend.h \
   Runtime/Engine/Classes/Sound/SoundSourceBusSend.h \
   ../Intermediate/Build/Mac/UnrealEditor/Inc/Engine/UHT/AudioComponent.generated.h \
+  Runtime/Engine/Classes/GameFramework/DefaultPawn.h \
+  Runtime/Engine/Classes/GameFramework/Pawn.h \
+  ../Intermediate/Build/Mac/UnrealEditor/Inc/Engine/UHT/DefaultPawn.generated.h \
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Intermediate/Build/Mac/UnrealEditor/Inc/CPPTest/UHT/FrequenSeeAudioComponent.generated.h \
   Runtime/Projects/Public/Interfaces/IPluginManager.h \
   Runtime/Projects/Public/PluginDescriptor.h \
@@ -3995,4 +3998,15 @@
   Runtime/Projects/Public/PluginReferenceDescriptor.h \
   Runtime/Core/Public/HAL/PlatformCrt.h \
   Runtime/Projects/Public/VerseScope.h \
-  Runtime/Core/Public/Containers/VersePathFwd.h
+  Runtime/Core/Public/Containers/VersePathFwd.h \
+  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Private/FrequenSeeAudioReverbPlugin.h \
+  Runtime/Engine/Classes/Sound/SoundEffectSubmix.h \
+  Runtime/AudioMixerCore/Public/AudioDefines.h \
+  Runtime/SignalProcessing/Public/DSP/BufferVectorOperations.h \
+  Runtime/AudioExtensions/Public/IAudioExtensionPlugin.h \
+  Runtime/Engine/Classes/Sound/SoundEffectPreset.h \
+  Runtime/Engine/Classes/Sound/SoundEffectBase.h \
+  ../Intermediate/Build/Mac/UnrealEditor/Inc/Engine/UHT/SoundEffectSubmix.generated.h \
+  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Public/FrequenSeeAudioReverbSettings.h \
+  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Intermediate/Build/Mac/UnrealEditor/Inc/FrequenSee/UHT/FrequenSeeAudioReverbSettings.generated.h \
+  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Intermediate/Build/Mac/UnrealEditor/Inc/FrequenSee/UHT/FrequenSeeAudioReverbPlugin.generated.h

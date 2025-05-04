@@ -3978,5 +3978,10 @@
   Runtime/Engine/Classes/Sound/SoundSubmixSend.h \
   Runtime/Engine/Classes/Sound/SoundSourceBusSend.h \
   ../Intermediate/Build/Mac/UnrealEditor/Inc/Engine/UHT/AudioComponent.generated.h \
+  Runtime/Engine/Classes/GameFramework/DefaultPawn.h \
+  Runtime/Engine/Classes/GameFramework/Pawn.h \
+  ../Intermediate/Build/Mac/UnrealEditor/Inc/Engine/UHT/DefaultPawn.generated.h \
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Intermediate/Build/Mac/UnrealEditor/Inc/CPPTest/UHT/FrequenSeeAudioComponent.generated.h \
+  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Public/FrequenSeeAudioOcclusionSettings.h \
+  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Intermediate/Build/Mac/UnrealEditor/Inc/FrequenSee/UHT/FrequenSeeAudioOcclusionSettings.generated.h \
   Runtime/Engine/Classes/GameFramework/Actor.h

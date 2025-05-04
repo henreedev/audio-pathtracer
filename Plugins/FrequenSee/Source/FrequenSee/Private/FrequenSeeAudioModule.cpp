@@ -3,7 +3,7 @@
 
 #include "FrequenSeeAudioOcclusionPlugin.h"
 #include "Interfaces/IPluginManager.h"
-// #include "FrequenSeeAudioReverb.h"
+#include "FrequenSeeAudioReverbPlugin.h"
 // #include "FrequenSeeAudioSpatialization.h"
 
 IMPLEMENT_MODULE(FFrequenSeeAudioModule, FrequenSee);
@@ -17,4 +17,7 @@ void FFrequenSeeAudioModule::StartupModule()
 	OcclusionPluginFactory = MakeUnique<FFrequenSeeAudioOcclusionPluginFactory>();
 	// auto c = OcclusionPluginFactory->GetCustomOcclusionSettingsClass();
 	IModularFeatures::Get().RegisterModularFeature(FFrequenSeeAudioOcclusionPluginFactory::GetModularFeatureName(), OcclusionPluginFactory.Get());
+
+	ReverbPluginFactory = MakeUnique<FFrequenSeeAudioReverbPluginFactory>();
+	IModularFeatures::Get().RegisterModularFeature(FFrequenSeeAudioReverbPluginFactory::GetModularFeatureName(), ReverbPluginFactory.Get());
 }

@@ -7,7 +7,9 @@
 #include "GameFramework/DefaultPawn.h"
 #include "FrequenSeeAudioComponent.generated.h"
 
+class UFrequenSeeAudioReverbSettings;
 class UFrequenSeeAudioOcclusionSettings;
+
 /**
  * UFrequenSeeAudioComponent is an audio component designed to simulate raycast-based sound propagation
  * and environmental audio interaction. This class enables functionality such as audio raycasting,
@@ -26,6 +28,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FrequenSeeAudioComponent")
 	UFrequenSeeAudioOcclusionSettings* OcclusionSettings;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FrequenSeeAudioComponent")
+	UFrequenSeeAudioReverbSettings* ReverbSettings;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FrequenSeeAudioComponent")
 	bool bIsRaycasting = false;
@@ -84,4 +89,14 @@ private:
 	float Timer = 0.0f;
 	float OcclusionAttenuation = 1.f;
 
+	// audio ray tracing sampling bins of float energy values
+	// dummy values assuming 44.1kHz sampling rate and 2 seconds of audio
+	int SampleRate = 44100;
+	int NumChannels = 2;
+	float SimulatedDuration = 2.0f;
+	int NumSamples = FMath::CeilToInt(SampleRate * SimulatedDuration);
+	TArray<TArray<float>> EnergyBuffer;
+
+	void ClearEnergyBuffer();
+	void Accumulate(float TimeSeconds, float Value, int32 Channel);
 };

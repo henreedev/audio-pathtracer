@@ -2,7 +2,7 @@
 
 // class FFrequenSeeAudioSpatializationPluginFactory;
 class FFrequenSeeAudioOcclusionPluginFactory;
-// class FFrequenSeeAdioReverbPluginFactory;
+class FFrequenSeeAudioReverbPluginFactory;
 
 class FFrequenSeeAudioModule: public IModuleInterface
 {
@@ -18,5 +18,5 @@ private:
 	TUniquePtr<FFrequenSeeAudioOcclusionPluginFactory> OcclusionPluginFactory;
 
 	/** Factory object used to instantiate the reverb plugin. */
-	// TUniquePtr<FFrequenSeeReverbPluginFactory> ReverbPluginFactory;
+	TUniquePtr<FFrequenSeeAudioReverbPluginFactory> ReverbPluginFactory;
 };
