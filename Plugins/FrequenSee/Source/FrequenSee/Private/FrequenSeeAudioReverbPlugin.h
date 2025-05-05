@@ -20,7 +20,7 @@ struct FFrequenSeeAudioReverbSource
 	void ClearBuffers();
 };
 
-class FFrequenSeeAudioReverbPlugin : IAudioReverb
+class FFrequenSeeAudioReverbPlugin : public IAudioReverb
 {
 public:
 	FFrequenSeeAudioReverbPlugin();
@@ -50,6 +50,11 @@ private:
 	TWeakObjectPtr<USoundSubmix> ReverbSubmix;
 
 	FSoundEffectSubmixPtr ReverbSubmixEffect;
+
+	void ConvolveStereo(const FAudioPluginSourceInputData& InputData,
+		const TArray<float>& IR_Left,
+		const TArray<float>& IR_Right,
+		FAudioPluginSourceOutputData& OutputData);
 };
 
 class FFrequenSeeAudioReverbPluginFactory : public IAudioReverbFactory

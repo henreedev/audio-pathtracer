@@ -16,7 +16,7 @@ class UFrequenSeeAudioOcclusionSettings;
  * energy-based volume adjustment, and environment responsiveness, tailored for dynamic audio experiences.
  */
 UCLASS(ClassGroup=(Audio), meta=(BlueprintSpawnableComponent))
-class CPPTEST_API UFrequenSeeAudioComponent : public UAudioComponent
+class FREQUENSEE_API UFrequenSeeAudioComponent : public UAudioComponent
 {
 	GENERATED_BODY()
 
@@ -36,7 +36,7 @@ public:
 	bool bIsRaycasting = false;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FrequenSeeAudioComponent")
-	int RaycastsPerTick = 5;
+	int RaycastsPerTick = 5000;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FrequenSeeAudioComponent")
 	int RaycastBounces = 10;
@@ -78,6 +78,7 @@ public:
 	void UpdateSound();
 
 	float GetOcclusionAttenuation() const { return OcclusionAttenuation; }
+	TArray<TArray<float>>& GetImpulseResponse() { return ImpulseBuffer; }
 
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -91,12 +92,18 @@ private:
 
 	// audio ray tracing sampling bins of float energy values
 	// dummy values assuming 44.1kHz sampling rate and 2 seconds of audio
-	int SampleRate = 44100;
+	int SampleRate = 48000;
 	int NumChannels = 2;
 	float SimulatedDuration = 2.0f;
-	int NumSamples = FMath::CeilToInt(SampleRate * SimulatedDuration);
+	float BinDuration = 0.0001f; // 0.1ms
+	int NumBins = FMath::CeilToInt(SimulatedDuration / BinDuration);  // = 10,000
+	int NumSamples = FMath::CeilToInt(SimulatedDuration * SampleRate);
+	// for energy responses per channel
 	TArray<TArray<float>> EnergyBuffer;
+	// for impulse responses per channel
+	TArray<TArray<float>> ImpulseBuffer;
 
 	void ClearEnergyBuffer();
 	void Accumulate(float TimeSeconds, float Value, int32 Channel);
+	void ReconstructImpulseResponse();
 };

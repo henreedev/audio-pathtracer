@@ -45,7 +45,7 @@ void FFrequenSeeAudioOcclusionPlugin::ProcessAudio(const FAudioPluginSourceInput
 
     for (int SampleIndex = 0; SampleIndex < InputData.AudioBuffer->Num(); ++SampleIndex)
     {
-        OutBufferData[SampleIndex] = InBufferData[SampleIndex] * OcclusionAttenuation;
+        // OutBufferData[SampleIndex] = InBufferData[SampleIndex] * OcclusionAttenuation;
     }
 }
 

@@ -3940,7 +3940,7 @@
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Private/FrequenSeeAudioReverbPlugin.cpp \
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Intermediate/Build/Mac/arm64/UnrealEditor/Development/FrequenSee/Definitions.FrequenSee.h \
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Private/FrequenSeeAudioReverbPlugin.h \
-  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Source/CPPTest/Public/FrequenSeeAudioComponent.h \
+  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Public/FrequenSeeAudioComponent.h \
   Runtime/Core/Public/CoreMinimal.h \
   Runtime/Engine/Classes/Components/AudioComponent.h \
   Runtime/Engine/Public/Audio.h \
@@ -3981,7 +3981,7 @@
   Runtime/Engine/Classes/GameFramework/DefaultPawn.h \
   Runtime/Engine/Classes/GameFramework/Pawn.h \
   ../Intermediate/Build/Mac/UnrealEditor/Inc/Engine/UHT/DefaultPawn.generated.h \
-  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Intermediate/Build/Mac/UnrealEditor/Inc/CPPTest/UHT/FrequenSeeAudioComponent.generated.h \
+  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Intermediate/Build/Mac/UnrealEditor/Inc/FrequenSee/UHT/FrequenSeeAudioComponent.generated.h \
   Runtime/Engine/Classes/Sound/SoundEffectSubmix.h \
   Runtime/AudioMixerCore/Public/AudioDefines.h \
   Runtime/SignalProcessing/Public/DSP/BufferVectorOperations.h \
@@ -3992,4 +3992,37 @@
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Public/FrequenSeeAudioReverbSettings.h \
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Intermediate/Build/Mac/UnrealEditor/Inc/FrequenSee/UHT/FrequenSeeAudioReverbSettings.generated.h \
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Intermediate/Build/Mac/UnrealEditor/Inc/FrequenSee/UHT/FrequenSeeAudioReverbPlugin.generated.h \
+  Runtime/Engine/Classes/Sound/SoundSubmix.h \
+  Runtime/Engine/Public/AudioDeviceHandle.h \
+  Runtime/AudioLink/AudioLinkCore/Public/AudioLinkSettingsAbstract.h \
+  Runtime/SignalProcessing/Public/DSP/SpectrumAnalyzer.h \
+  Runtime/SignalProcessing/Public/DSP/Dsp.h \
+  Runtime/SignalProcessing/Public/DSP/AudioFFT.h \
+  Runtime/Core/Public/Misc/CoreMiscDefines.h \
+  Runtime/SignalProcessing/Public/DSP/FFTAlgorithm.h \
+  Runtime/Core/Public/Features/IModularFeature.h \
+  Runtime/SignalProcessing/Public/SampleBuffer.h \
+  Runtime/SignalProcessing/Public/DSP/FloatArrayMath.h \
+  Runtime/Core/Public/Async/AsyncWork.h \
+  Runtime/AudioExtensions/Public/IAudioEndpoint.h \
+  Runtime/AudioMixerCore/Public/AudioMixerNullDevice.h \
+  Runtime/Core/Public/Containers/ArrayView.h \
+  Runtime/SignalProcessing/Public/DSP/MultithreadedPatching.h \
+  Runtime/Core/Public/Features/IModularFeatures.h \
+  Runtime/Core/Public/HAL/CriticalSection.h \
+  Runtime/AudioExtensions/Public/ISoundfieldFormat.h \
+  Runtime/Core/Public/Logging/LogMacros.h \
+  Runtime/Core/Public/Misc/AssertionMacros.h \
+  Runtime/CoreUObject/Public/UObject/UObjectGlobals.h \
+  ../Intermediate/Build/Mac/UnrealEditor/Inc/AudioExtensions/UHT/IAudioEndpoint.generated.h \
+  Runtime/AudioExtensions/Public/ISoundfieldEndpoint.h \
+  Runtime/Core/Public/HAL/ThreadSafeCounter.h \
+  Runtime/CoreUObject/Public/Templates/SubclassOf.h \
+  ../Intermediate/Build/Mac/UnrealEditor/Inc/AudioExtensions/UHT/ISoundfieldEndpoint.generated.h \
+  Runtime/Engine/Classes/Sound/SampleBufferIO.h \
+  Runtime/Core/Public/Misc/Paths.h \
+  Runtime/Core/Public/Templates/UnrealTypeTraits.h \
+  Runtime/CoreUObject/Public/UObject/GCObject.h \
+  Runtime/Engine/Public/Tickable.h \
+  ../Intermediate/Build/Mac/UnrealEditor/Inc/Engine/UHT/SoundSubmix.generated.h \
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Public/FrequenSeeAudioModule.h

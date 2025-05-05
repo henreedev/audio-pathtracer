@@ -2,6 +2,7 @@
 #include "Sound/SoundSubmix.h"
 #include "FrequenSeeAudioModule.h"
 #include "HAL/UnrealMemory.h"
+#include "Components/AudioComponent.h"
 
 
 FFrequenSeeAudioReverbSource::FFrequenSeeAudioReverbSource()
@@ -84,9 +85,54 @@ void FFrequenSeeAudioReverbPlugin::OnReleaseSource(const uint32 SourceId)
 void FFrequenSeeAudioReverbPlugin::ProcessSourceAudio(const FAudioPluginSourceInputData& InputData,
 	FAudioPluginSourceOutputData& OutputData)
 {
+	UE_LOG(LogTemp, Warning, TEXT("REVERB PLUGIN PROCESSING"));
+	
+	const UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(InputData.AudioComponentId);
+	UFrequenSeeAudioComponent* FrequenSeeSourceComponent = AudioComponent->GetOwner()->FindComponentByClass<UFrequenSeeAudioComponent>();
+	
+	TArray<TArray<float>>& ImpulseBuffer = FrequenSeeSourceComponent->GetImpulseResponse();
+	ConvolveStereo(InputData,
+		ImpulseBuffer[0],
+		ImpulseBuffer[1],
+		OutputData);
 
+	// copy input to output
+	// const float* InBufferData = InputData.AudioBuffer->GetData();
+	// float* OutBufferData = OutputData.AudioBuffer.GetData();
+	// const int32 NumSamples = InputData.AudioBuffer->Num();
+	// for (int32 SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
+	// {
+	// 	OutBufferData[SampleIndex] = InBufferData[SampleIndex];
+	// }
+}
+
+void FFrequenSeeAudioReverbPlugin::ConvolveStereo(const FAudioPluginSourceInputData& InputData,
+	const TArray<float>& IR_Left, const TArray<float>& IR_Right, FAudioPluginSourceOutputData& OutputData)
+{
+
+	const float* DrySignal = InputData.AudioBuffer->GetData();
+	float* OutWetSignal = OutputData.AudioBuffer.GetData();
 	
+	const int32 NumFrames = InputData.AudioBuffer->Num() / 2;
+	const int32 IRSize = IR_Left.Num();
 	
+	for (int32 i = 0; i < NumFrames; ++i)
+	{
+		float AccumL = 0.0f;
+		float AccumR = 0.0f;
+
+		for (int32 j = 0; j < IRSize; ++j)
+		{
+			if (i - j < 0)
+				break;
+
+			AccumL += DrySignal[(i - j) * 2]     * IR_Left[j];
+			AccumR += DrySignal[(i - j) * 2 + 1] * IR_Right[j];
+		}
+
+		OutWetSignal[i * 2]     = AccumL;
+		OutWetSignal[i * 2 + 1] = AccumR;
+	}
 }
 
 FString FFrequenSeeAudioReverbPluginFactory::GetDisplayName()
@@ -126,7 +172,7 @@ uint32 FFrequenSeeAudioReverbSubmixPlugin::GetDesiredInputChannelCountOverride()
 void FFrequenSeeAudioReverbSubmixPlugin::OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData)
 {
 
-
+	UE_LOG(LogTemp, Warning, TEXT("SUBMIX PLUGIN PROCESSING"));
 	
 }
 

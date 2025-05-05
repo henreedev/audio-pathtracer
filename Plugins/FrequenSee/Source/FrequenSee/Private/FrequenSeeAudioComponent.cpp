@@ -13,8 +13,8 @@
 
 UFrequenSeeAudioComponent::UFrequenSeeAudioComponent()
 {
-	// PrimaryComponentTick.bCanEverTick = true;
-	// bAutoActivate = true; // Make sure it activates and starts ticking
+	PrimaryComponentTick.bCanEverTick = true;
+	bAutoActivate = true; // Make sure it activates and starts ticking
 	
 	bOverrideAttenuation = true;
 
@@ -34,14 +34,18 @@ UFrequenSeeAudioComponent::UFrequenSeeAudioComponent()
 	AttenuationOverrides.PluginSettings.ReverbPluginSettingsArray.Add(ReverbSettings);
 
 	EnergyBuffer.SetNum(NumChannels);
+	ImpulseBuffer.SetNum(NumChannels);
 	for (int Channel = 0; Channel < NumChannels; ++Channel)
 	{
-		EnergyBuffer[Channel].Init(0.0f, NumSamples);
+		EnergyBuffer[Channel].Init(0.0f, NumBins);
+		ImpulseBuffer[Channel].Init(0.0f, NumSamples);
 	}
 }
 
 UFrequenSeeAudioComponent::~UFrequenSeeAudioComponent()
 {
+	delete AttenuationOverrides.PluginSettings.OcclusionPluginSettingsArray[0];
+	delete AttenuationOverrides.PluginSettings.ReverbPluginSettingsArray[0];
 	AttenuationOverrides.PluginSettings.OcclusionPluginSettingsArray.Empty();
 	AttenuationOverrides.PluginSettings.ReverbPluginSettingsArray.Empty();
 }
@@ -79,16 +83,18 @@ void UFrequenSeeAudioComponent::TickComponent(float DeltaTime, ELevelTick TickTy
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+	// UE_LOG(LogTemp, Warning, TEXT("Ticking FROMCOMP"));
 	// Cast rays at only certain intervals
-	Timer -= DeltaTime;
-	if (Timer <= 0.0f)
-	{
-		// Reset timer
-		Timer = RaycastInterval;
-		
-		// Cast rays and update this source's volume
-		UpdateSound();
-	}
+	// Timer -= DeltaTime;
+	// if (Timer <= 0.0f)
+	// {
+	// 	// Reset timer
+	// 	Timer = RaycastInterval;
+	// 	
+	// 	// Cast rays and update this source's volume
+	// 	UpdateSound();
+	// }
+	UpdateSound();
 }
 
 void DrawDebugLineWrapper(const UWorld* InWorld, 
@@ -105,7 +111,9 @@ void DrawDebugLineWrapper(const UWorld* InWorld,
 
 void UFrequenSeeAudioComponent::DebuggingDrawRay(FVector Start, FVector End, const UWorld* World, FHitResult Hit, bool bHit, int BouncesLeft, float Energy, bool HitPlayer)
 {
-
+	// temporarily disable debug drawing
+	return;
+	
 	// Start and end colors
 	FLinearColor Green = FLinearColor(FColor::Green);
 	FLinearColor Red = FLinearColor(FColor::Red);
@@ -205,6 +213,16 @@ float UFrequenSeeAudioComponent::CastAudioRay(FVector Dir, FVector StartPos, flo
 		
 		
 		if (bHit) {
+			float DistanceLeft = MaxDistance - Hit.Distance;
+			FVector DirToPlayer = Player->GetActorLocation() - Hit.ImpactPoint;
+			float DistanceToPlayer = DirToPlayer.Size();
+			// reducing scale by 100x
+			float TravelTime = (RaycastDistance - DistanceLeft + DistanceToPlayer) * 0.01f / 343.0f;
+			if (TravelTime > SimulatedDuration)
+			{
+				return 0.0f;
+			}
+		
 			if (Hit.GetActor()->IsA<ADefaultPawn>())
 			{
 				// UE_LOG(LogTemp, Warning, TEXT("HIT THE PLAYER!!!"));
@@ -215,17 +233,11 @@ float UFrequenSeeAudioComponent::CastAudioRay(FVector Dir, FVector StartPos, flo
 				// Did not hit the player;
 				// 1. Reduce energy TODO based on bounced material
 				auto OldEnergy = Energy;
-				Energy *= DampingFactor;
-				Energy = FMath::Clamp(Energy, 0.0f, 1.0f);
-				float DistanceLeft = MaxDistance - Hit.Distance;
-				float TravelTime = (RaycastDistance - DistanceLeft) / 343.0f;
-				if (TravelTime > SimulatedDuration)
-				{
-					return 0.0f;
-				}
+				// Energy *= DampingFactor;
+				// Energy = FMath::Clamp(Energy, 0.0f, 1.0f);
 
 				// Direct ray to player - how much does the material absorb, how much continues, how much bounces?
-				FVector DirToPlayer = Player->GetActorLocation() - Hit.ImpactPoint;
+				
 				DirToPlayer.Normalize();
 				float DirectEnergy = CastDirectAudioRay(DirToPlayer, Hit.ImpactPoint, DistanceLeft, 1, Energy);
 				
@@ -307,11 +319,17 @@ float UFrequenSeeAudioComponent::CastDirectAudioRay(FVector Dir, FVector StartPo
 		{
 			// Energy *= (1.f - AbsorbtionFactorAir * fmax(Hit.Distance, 1.0f));
 			// DebuggingDrawRay(DirectStart, Hit.ImpactPoint, World, Hit, bDirectHit, Bounces, Energy, true);
-			float TravelTime = (RaycastDistance - MaxDistance + Hit.Distance) / 343.0f;
+			float TravelDistance = RaycastDistance - MaxDistance + Hit.Distance;
+			// reducing scale by 10x
+			TravelDistance *= 0.01f;
+			float TravelTime = TravelDistance / 343.0f;
 			if (TravelTime > SimulatedDuration)
 			{
 				return 0.0f;
 			}
+			// Energy *= 1.0f / std::max(TravelDistance, 1.0f);
+			// { 0.0002f, 0.0017f, 0.0182f }
+			Energy *= expf(-0.0017f * TravelDistance);
 			// not sure about channels
 			Accumulate(TravelTime, Energy, 0);
 			Accumulate(TravelTime, Energy, 1);
@@ -340,8 +358,8 @@ void UFrequenSeeAudioComponent::UpdateSound()
 	float TotalEnergy = 0.0f;
 	for (int i = 0; i < RaycastsPerTick; i++)
 	{
-		// auto RandDir = FMath::VRandCone(FVector(-1.0f, 0.0f, 0.0f), PI / 4.0f, 0.0001f); // help
-		auto RandDir = FVector(0.0f, -1.0f, 0.0f).RotateAngleAxis(i * 165.0f / RaycastsPerTick + FMath::RandRange(0.0f, 0.5f), FVector(0.0f, 0.0f, 1.0f));
+		auto RandDir = FMath::VRandCone(FVector(0.0f, -1.0f, 0.0f), PI, PI); // help
+		// auto RandDir = FVector(0.0f, -1.0f, 0.0f).RotateAngleAxis(i * 165.0f / RaycastsPerTick + FMath::RandRange(0.0f, 0.5f), FVector(0.0f, 0.0f, 1.0f));
 		float Energy = CastAudioRay(RandDir, GetComponentLocation(), RaycastDistance, RaycastBounces);
 		TotalEnergy += Energy;
 	}
@@ -350,9 +368,12 @@ void UFrequenSeeAudioComponent::UpdateSound()
 	FVector DirToPlayer = Player->GetActorLocation() - GetComponentLocation();
 	DirToPlayer.Normalize();
 	OcclusionAttenuation = CastDirectAudioRay(DirToPlayer, GetComponentLocation(), RaycastDistance, 10, 1.0f, GetOwner());
+	// UE_LOG(LogTemp, Warning, TEXT("Occlusion attenuation FROMCOMP: %f"), OcclusionAttenuation);
 	
 	// Set new volume. TODO Update this with more interesting functionality, like doing an IR on the sound buffer
-	SetVolumeMultiplier(FMath::Clamp(TotalEnergy, 0.0f, 1.0f));
+	// SetVolumeMultiplier(FMath::Clamp(TotalEnergy, 0.0f, 1.0f));
+
+	ReconstructImpulseResponse();
 }
 
 void UFrequenSeeAudioComponent::ClearEnergyBuffer()
@@ -367,11 +388,89 @@ void UFrequenSeeAudioComponent::Accumulate(float TimeSeconds, float Value, int32
 {
 	if (Channel >= NumChannels || Channel < 0) return;
 
-	int32 Index = FMath::RoundToInt(TimeSeconds * SampleRate);
-	if (Index >= 0 && Index < NumSamples)
+	int32 Index = FMath::FloorToInt(TimeSeconds / BinDuration);
+	if (Index >= 0 && Index < NumBins)
 	{
 		EnergyBuffer[Channel][Index] += Value;
 	}
 }
+
+void UFrequenSeeAudioComponent::ReconstructImpulseResponse()
+{
+	constexpr float kEnergyThreshold = 1e-6f;
+	const float Pi4 = FMath::Sqrt(4.0f * PI);
+	const int32 NumSamplesPerBin = FMath::CeilToInt(BinDuration * SampleRate);
+	const TArray<float>& EnergyNorms = EnergyBuffer[0];
+	
+	for (int32 Channel = 0; Channel < NumChannels; ++Channel) 
+	{
+		const TArray<float>& EnergyResponse = EnergyBuffer[Channel];
+		TArray<float>& ImpulseResponse = ImpulseBuffer[Channel];
+		FMemory::Memset(ImpulseResponse.GetData(), 0, sizeof(float) * ImpulseResponse.Num());
+	 	
+		for (int32 Bin = 0; Bin < NumBins; ++Bin) 
+		{
+			const float EnergyNorm = EnergyNorms[Bin];
+			const float NumBinSamples = std::min(NumSamplesPerBin, NumSamples - Bin * NumSamplesPerBin);
+			float Normalization = 1.0f;
+			float Energy = 0.0f;
+			if (fabsf(EnergyResponse[Bin]) >= kEnergyThreshold && fabsf(EnergyNorm) >= kEnergyThreshold)
+			{
+				Energy = EnergyResponse[Bin] / sqrtf(EnergyNorm * Pi4);
+			}
+			float PrevEnergy = 0.0f;
+			if (Bin == 0)
+			{
+				PrevEnergy = Energy;
+			}
+			else if (fabsf(EnergyResponse[Bin - 1]) >= kEnergyThreshold && fabsf(EnergyNorms[Bin - 1]) >= kEnergyThreshold)
+			{
+				PrevEnergy = EnergyResponse[Bin - 1] / sqrtf(EnergyNorms[Bin - 1] * Pi4);
+			}
+
+			for (int32 BinSample = 0, Sample = Bin * NumSamplesPerBin; BinSample < NumBinSamples; ++BinSample, ++Sample)
+			{
+				const float Weight = static_cast<float>(BinSample) / static_cast<float>(NumSamplesPerBin);
+				const float SampleEnergy = (1.0f - Weight) * PrevEnergy + Weight * Energy;
+
+				ImpulseResponse[Sample] = SampleEnergy;
+			}
+		}
+
+		const float FilterCoefficient = 0.25f; // Tune between (0, 1)
+		TArray<float> Filtered;
+		Filtered.SetNumUninitialized(ImpulseResponse.Num());
+
+		// First sample is unchanged (or initialize as needed)
+		Filtered[0] = ImpulseResponse[0];
+		for (int32 i = 1; i < ImpulseResponse.Num(); ++i)
+		{
+			Filtered[i] = FilterCoefficient * ImpulseResponse[i] + (1.0f - FilterCoefficient) * Filtered[i - 1];
+		}
+
+		ImpulseResponse = MoveTemp(Filtered);
+	}
+
+	// log sum of energy
+	float EnergySumRight = 0.0f;
+	float EnergySumLeft = 0.0f;
+	for (int32 i = 0; i < EnergyBuffer[0].Num(); ++i)
+	{
+		EnergySumRight += EnergyBuffer[0][i];
+		EnergySumLeft += EnergyBuffer[1][i];
+	}
+	UE_LOG(LogTemp, Warning, TEXT("Energy sum right: %f, left: %f"), EnergySumRight, EnergySumLeft);
+
+	// log sum of impulse
+	float ImpulseSumRight = 0.0f;
+	float ImpulseSumLeft = 0.0f;
+	for (int32 i = 0; i < ImpulseBuffer[0].Num(); ++i)
+	{
+		ImpulseSumRight += ImpulseBuffer[0][i];
+		ImpulseSumLeft += ImpulseBuffer[1][i];
+	}
+	UE_LOG(LogTemp, Warning, TEXT("Impulse sum right: %f, left: %f"), ImpulseSumRight, ImpulseSumLeft);
+}
+	
 
 

@@ -14,7 +14,7 @@ public class FrequenSee : ModuleRules
 			"Landscape",
 			"AudioMixer",
 			"AudioExtensions", 
-			"CPPTest"
+			// "CPPTest"
 		});
 		
 		if (Target.bBuildEditor)
