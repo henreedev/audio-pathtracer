@@ -72,6 +72,8 @@ struct FSoundPath
 {
 	GENERATED_BODY()
 	TArray<FSoundPathNode> Nodes;
+	float TotalLength;
+	float EnergyContribution;
 	
 	
 };
@@ -82,8 +84,14 @@ class CPPTEST_API UAudioRayTracingSubsystem : public UWorldSubsystem, public FTi
 	GENERATED_BODY()
 
 public:
-
+	
+	
 	UAudioRayTracingSubsystem();
+	
+	/* --- WorldSubsystem overrides --- */
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+	
 	/* --- Geometry registration --- */
 	void RegisterGeometry(UAcousticGeometryComponent* Comp)   { Geometry.AddUnique(Comp); }
 	void UnregisterGeometry(UAcousticGeometryComponent* Comp) { Geometry.Remove(Comp);   }
@@ -120,4 +128,29 @@ private:
 	FPathEnergyResult EvaluatePath(FSoundPath& Path) const;
 	TArray<float> GetEnergyBuffer(FActiveSource& Src) const;
 	void UpdateSources();
+
+	/** --- PATH VISUALIZATION METHODS --- */
+
+	/**
+	 * Given an FSoundPath, visualizes its entire travel over the course of the given duration.
+	 * Does so by calling Unreal's DrawDebugLine for each segment travelled along the path as time passes.
+	 * Line segments need to be manually cleaned up later if bPersistent is true.
+	 */
+	void VisualizePath(const FSoundPath& Path, float Duration, FColor Color, bool bPersistent = true) const;
+
+	/**
+	 * Draws a segmented line from Start to End at the given speed. 
+	 * Line segments need to be manually cleaned up later if bPersistent is true.
+	 */
+	float DrawSegmentedLine(const FVector& Start, const FVector& End, float Speed, FColor Color,
+	                        float DrawDelay, bool bPersistent = true) const;
+	const int DEBUG_RAY_FPS = 60; 
+	/**
+	 * Given forward, backward, and connected paths, shows the complete process of:
+	 * 1. Sending out forward and backward paths
+	 * 2. Connecting them at their endpoints -- add a new, different-colored debug line between endpoints
+	 * 3. Evaluating their contribution -- redraw paths colored by their energy contribution
+	 * Apportions some of the total duration to each step. 
+	 */
+	void VisualizeBDPT(const TArray<FSoundPath>& ForwardPaths, const TArray<FSoundPath>& BackwardPaths, const TArray<FSoundPath>& ConnectedPaths, float TotalDuration) const; 
 };

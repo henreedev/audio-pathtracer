@@ -24,14 +24,41 @@ float AverageArray(const TArray<FAcousticBand>& Values)
 UAudioRayTracingSubsystem::UAudioRayTracingSubsystem()
 {
 
-    Super();
-    Player = nullptr;
-    for (TActorIterator<APawn> It(GetWorld()); It; ++It)
+    // Super();
+    // Player = nullptr;
+    // for (TActorIterator<APawn> It(GetWorld()); It; ++It)
+    // {
+    //     Player = Cast<ADefaultPawn>(*It);
+    //     break; // Only need the first one
+    // }
+}
+
+void UAudioRayTracingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+    Super::Initialize(Collection);
+
+    // Find the first DefaultPawn in the world
+    if (UWorld* World = GetWorld())
     {
-        Player = Cast<ADefaultPawn>(*It);
-        break; // Only need the first one
+        for (TActorIterator<APawn> It(World); It; ++It)
+        {
+            Player = Cast<ADefaultPawn>(*It);
+            if (Player)
+            {
+                UE_LOG(LogTemp, Log, TEXT("Player pawn found: %s"), *Player->GetName());
+                break;
+            }
+        }
     }
 }
+
+void UAudioRayTracingSubsystem::Deinitialize()
+{
+    Super::Deinitialize();
+
+    Player = nullptr;
+}
+
 
 void UAudioRayTracingSubsystem::RegisterSource(UFrequenSeeAudioComponent* InComp)
 {
@@ -242,6 +269,7 @@ void UAudioRayTracingSubsystem::GeneratePath(const AActor* ActorToIgnore, FSound
     }
 }
 
+// Also updates the FSoundPath's TotalLength field based on calculated distance. 
 FPathEnergyResult UAudioRayTracingSubsystem::EvaluatePath(FSoundPath& Path) const
 {
     constexpr float SoundSpeed = 343.0f;
@@ -266,10 +294,183 @@ FPathEnergyResult UAudioRayTracingSubsystem::EvaluatePath(FSoundPath& Path) cons
         Energy *= BSDFFactor;
         Energy *= GeometryTerm;
     }
+
+    
     // Apply media term (equation 3)
     constexpr float AIR_ABSORPTION_FACTOR = 0.005;
     float MediaAbsorption = exp(-AIR_ABSORPTION_FACTOR * Distance);
     Energy *= MediaAbsorption;
     
+    // Update path values
+    Path.TotalLength = Distance;
+    Path.EnergyContribution = Energy;
+    
     return {Distance / SoundSpeed, Energy};
 }
+
+/** -------------------------- PATH VISUALIZATION --------------------------- */
+/**
+ * Draws a segmented line from Start to End at the given speed. 
+ * Line segments need to be manually cleaned up later if bPersistent is true.
+ * GetWorld()->FlushPersistentDebugLines();
+ */
+float UAudioRayTracingSubsystem::DrawSegmentedLine(const FVector& Start, const FVector& End, float Speed, FColor Color,
+                                                   float DrawDelay, bool bPersistent) const
+{
+    // Difference vector
+    const FVector Diff = End - Start;
+    const FVector Dir = Diff.GetSafeNormal();
+    const float Dist = Diff.Length();
+    FVector CurrentPos = Start;
+
+    const float DELTATIME = 1.0f / DEBUG_RAY_FPS;
+    FVector Increment = Dir * Speed * DELTATIME;
+
+    float TimePassed = 0.0f;
+    auto World = GetWorld();
+    
+    // Simulate ticks with fixed delta time, drawing a ray segment on each tick with delay and length based on time passed
+    while ((CurrentPos - Start).Length() < Dist)
+    {
+        // Find end of ray segment
+        FVector NextPos = CurrentPos + Increment;
+        if (NextPos.Length() >= Dist)
+        {
+            NextPos = End;
+        }
+        
+        // Draw ray segment with delay equal to total time passed 
+        FTimerHandle TimerHandle;
+        float Delay = TimePassed;
+	
+        World->GetTimerManager().SetTimer(
+        	TimerHandle,
+        	FTimerDelegate::CreateLambda([=]()
+        	{
+                DrawDebugLine(
+                    GetWorld(),
+                    CurrentPos,
+                    NextPos,
+                    Color,
+                    bPersistent,
+                        1000.f,
+                    0,
+                    1.0f
+                );
+        	}),
+        	Delay == 0 ? 0.0000001f : Delay,
+        	false
+        );
+
+        // Increment current position
+        CurrentPos = NextPos;
+
+        // Increment time passed
+        TimePassed += DELTATIME;
+    }
+    return TimePassed;
+}
+
+/**
+ * Given an FSoundPath, visualizes its entire travel over the course of the given duration.
+ * Does so by calling Unreal's DrawDebugLine for each segment travelled along the path as time passes.
+ * Line segments need to be manually cleaned up later if bPersistent is true.
+ */
+void UAudioRayTracingSubsystem::VisualizePath(const FSoundPath& Path, float Duration, FColor Color, bool bPersistent) const
+{
+    float Speed = Path.TotalLength / Duration;
+    float TotalTimePassed = 0.0f;
+    // Draw each line segment, adding the time it takes to the 
+    for (int i = 0; i < Path.Nodes.Num() - 1; ++i)
+    {
+        // Get node pair
+        auto CurrentNode = Path.Nodes[i];
+        auto NextNode = Path.Nodes[i + 1];
+
+        // Draw line between them at a fixed speed, returning how long it takes to draw the line at that pace
+        // Delay the drawing by time taken for previous lines so far
+        float TimePassed = DrawSegmentedLine(CurrentNode.Position, NextNode.Position, Speed, Color, TotalTimePassed, bPersistent);
+
+        // Add time taken to total count for future delays
+        TotalTimePassed += TimePassed;
+    }
+}
+
+/**
+     * Given forward, backward, and connected paths, shows the complete process of:
+     * 1. Sending out forward and backward paths
+     * 2. Connecting them at their endpoints -- add a new, different-colored debug line between endpoints
+     * 3. Evaluating their contribution -- redraw paths colored by their energy contribution
+     * Apportions some of the total duration to each step. 
+     */
+void UAudioRayTracingSubsystem::VisualizeBDPT(const TArray<FSoundPath>& ForwardPaths, const TArray<FSoundPath>& BackwardPaths, const TArray<FSoundPath>& ConnectedPaths, float TotalDuration) const
+{
+    float DrawPathsDuration = TotalDuration * 0.5f;
+    float ShowConnectionDuration = TotalDuration * 0.25f;
+    float ShowContributionDuration = TotalDuration * 0.25f;
+    
+    // 1. Draw forward + backward paths at the same time
+    // Draw forward paths
+    for (const FSoundPath& Path : ForwardPaths)
+    {
+        VisualizePath(Path, DrawPathsDuration, FColor::Green, true);
+    }
+    // Draw backward paths
+    for (const FSoundPath& Path : BackwardPaths)
+    {
+        VisualizePath(Path, DrawPathsDuration, FColor::Orange, true);
+    }
+    
+    // 2. After doing above, erase existing debug lines and draw the connected paths instantly in a new color
+    FTimerHandle ConnectedPathsTimerHandle;
+    GetWorld()->GetTimerManager().SetTimer(
+        ConnectedPathsTimerHandle,
+        FTimerDelegate::CreateLambda([=]()
+        {
+            FlushPersistentDebugLines(GetWorld());
+            for (const FSoundPath& Path : ConnectedPaths)
+            {
+                VisualizePath(Path, 0.0f, FColor::Yellow, true);
+            }
+        }),
+        DrawPathsDuration,
+        false);
+    // 3. After doing above, erase existing debug lines and draw the connected paths BASED ON THEIR ENERGY
+    FTimerHandle ContributionTimerHandle;
+    GetWorld()->GetTimerManager().SetTimer(
+        ContributionTimerHandle,
+        FTimerDelegate::CreateLambda([=]()
+        {
+            FlushPersistentDebugLines(GetWorld());
+            for (const FSoundPath& Path : ConnectedPaths)
+            {
+                // Get path energy
+                float Energy = Path.EnergyContribution;
+
+                // Lerp its color between bright green and dark red based on this energy
+                // Start and end colors
+                FLinearColor DarkRed = FLinearColor(FColor(200, 0, 0));
+                FLinearColor Green = FLinearColor(FColor::Green);
+
+                // Lerp in HSV space
+                FColor EnergyColor = FLinearColor::LerpUsingHSV(Green, DarkRed, Energy).ToFColor(true);
+
+                // Draw using energy color
+                VisualizePath(Path, 0.0f, EnergyColor, true);
+            }
+        }),
+        DrawPathsDuration + ShowConnectionDuration,
+        false);
+
+    // 4. Delete debug lines after duration ends
+    FTimerHandle DeleteTimerHandle;
+    GetWorld()->GetTimerManager().SetTimer(
+        DeleteTimerHandle,
+        FTimerDelegate::CreateLambda([=]()
+        {
+            FlushPersistentDebugLines(GetWorld());
+        }),
+        DrawPathsDuration + ShowConnectionDuration + ShowContributionDuration, false
+    );
+}
+
