@@ -455,17 +455,38 @@ float UAudioRayTracingSubsystem::DrawSegmentedLineAdvanced(
 float UAudioRayTracingSubsystem::DrawSegmentedLine(FVector& Start, FVector& End, float Speed, FColor Color,
                                                    float DrawDelay, bool bPersistent)
 {
+    if (Speed <= 0.f)
+    {
+        return 0.f;
+    }
+    
     // Difference vector
     FVector Diff = End - Start;
     FVector Dir = Diff.GetSafeNormal();
     float Dist = Diff.Length();
     FVector CurrentPos = Start;
 
+    
     const float DELTATIME = 1.0f / DEBUG_RAY_FPS;
     FVector Increment = Dir * Speed * DELTATIME;
     float DistIncrement = Increment.Length();
     UE_LOG(LogTemp, Warning, TEXT("Total Launches: %f"), (Dist / DistIncrement));
 
+    // Log all variables
+    UE_LOG(LogTemp, Warning, TEXT("Start: %s"), *Start.ToString());
+    UE_LOG(LogTemp, Warning, TEXT("End: %s"), *End.ToString());
+    UE_LOG(LogTemp, Warning, TEXT("Speed: %f"), Speed);
+    UE_LOG(LogTemp, Warning, TEXT("Dist: %f"), Dist);
+    UE_LOG(LogTemp, Warning, TEXT("Dir: %s"), *Dir.ToString());
+    UE_LOG(LogTemp, Warning, TEXT("CurrentPos: %s"), *CurrentPos.ToString());
+    UE_LOG(LogTemp, Warning, TEXT("DrawDelay: %f"), DrawDelay);
+    UE_LOG(LogTemp, Warning, TEXT("bPersistent: %d"), bPersistent);
+    UE_LOG(LogTemp, Warning, TEXT("Color: %s"), *Color.ToString());
+    UE_LOG(LogTemp, Warning, TEXT("DELTATIME: %f"), DELTATIME);
+    UE_LOG(LogTemp, Warning, TEXT("Increment: %s"), *Increment.ToString());
+    UE_LOG(LogTemp, Warning, TEXT("DistIncrement: %f"), DistIncrement);
+    
+    
     float TimePassed = 0.0f;
     float DistTravelled = 0.f;   
     auto World = GetWorld();
@@ -509,6 +530,11 @@ float UAudioRayTracingSubsystem::DrawSegmentedLine(FVector& Start, FVector& End,
 
         // Increment time passed
         TimePassed += DELTATIME;
+
+        if (TimePassed > 5.0f)
+        {
+            break;
+        }
     }
     return TimePassed;
 }
@@ -628,7 +654,7 @@ void UAudioRayTracingSubsystem::VisualizeBDPT(const TArray<FSoundPath>& ForwardP
     FTimerHandle ConnectedPathsTimerHandle;
     GetWorld()->GetTimerManager().SetTimer(
         ConnectedPathsTimerHandle,
-        FTimerDelegate::CreateLambda([&, this]()
+        FTimerDelegate::CreateLambda([=, this]()
         {
             if (!IsValid(this)) return;
             // FlushPersistentDebugLines(GetWorld());
@@ -638,14 +664,16 @@ void UAudioRayTracingSubsystem::VisualizeBDPT(const TArray<FSoundPath>& ForwardP
             {
                 FVector A = Path.ConnectionNodeForward->Position;
                 FVector B = Path.ConnectionNodeBackward->Position;
+                UE_LOG(LogTemp, Warning, TEXT("A: %s"), *A.ToString());
+                UE_LOG(LogTemp, Warning, TEXT("B: %s"), *B.ToString());
                 float Distance = FVector::Dist(A, B);
-                DrawSegmentedLine(
-                    Path.ConnectionNodeForward->Position,
-                    Path.ConnectionNodeBackward->Position,
-                    Distance / ShowConnectionDuration,
-                    FColor::Blue,
-                    0.0f,
-                    true);
+                // DrawSegmentedLine(
+                //     Path.ConnectionNodeForward->Position,
+                //     Path.ConnectionNodeBackward->Position,
+                //     Distance / ShowConnectionDuration,
+                //     FColor::Blue,
+                //     0.0f,
+                //     true);
             }
 
             
