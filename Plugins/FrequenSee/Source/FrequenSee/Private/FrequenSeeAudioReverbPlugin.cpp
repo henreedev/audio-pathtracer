@@ -113,10 +113,10 @@ void FFrequenSeeAudioReverbPlugin::ProcessSourceAudio(const FAudioPluginSourceIn
 	CurrentSample++;
 
 	TArray<TArray<float>>& ImpulseBuffer = FrequenSeeSourceComponent->GetImpulseResponse();
-	// ConvolveStereo(InputData,
-	// 	ImpulseBuffer[0],
-	// 	ImpulseBuffer[1],
-	// 	OutputData);
+	ConvolveStereo(InputData,
+		ImpulseBuffer[0],
+		ImpulseBuffer[1],
+		OutputData);
 	// ConvolveFFTStereo(InputData, ImpulseBuffer[0], OutputData);
 
 	// copy input to output
@@ -126,11 +126,11 @@ void FFrequenSeeAudioReverbPlugin::ProcessSourceAudio(const FAudioPluginSourceIn
 	for (int32 SampleIndex = 0; SampleIndex < FrameSize; ++SampleIndex)
 	{
 		// OutBufferData[SampleIndex] = InBufferData[SampleIndex];
-		OutBufferData[SampleIndex] = 0.0f;
-		for (int32 Sample = 0; Sample < ImpulseBuffer[0].Num() / 16; ++Sample)
-		{
-			OutBufferData[SampleIndex] += InBufferData[SampleIndex] * ImpulseBuffer[0][Sample];
-		}
+		// OutBufferData[SampleIndex] = 0.0f;
+		// for (int32 Sample = 0; Sample < ImpulseBuffer[0].Num() / 16; ++Sample)
+		// {
+		// 	OutBufferData[SampleIndex] += InBufferData[SampleIndex] * ImpulseBuffer[0][Sample];
+		// }
 	}
 }
 void NormalizeImpulseResponse(TArray<float>& IR);
@@ -158,7 +158,7 @@ void FFrequenSeeAudioReverbPlugin::ConvolveStereo(const FAudioPluginSourceInputD
 	auto Convolve = [&](const TArray<float>& Input, const TArray<float>& IR, TArray<float>& Output)
 	{
 		// 48k sample rate, 1 sec of IR
-		const int32 IrLength = IR.Num() / 16;
+		const int32 IrLength = IR.Num();
 		// in length = out length = 1024
 		const int32 InputLength = Input.Num();
 		const int32 OutputLength = Output.Num();
@@ -182,7 +182,7 @@ void FFrequenSeeAudioReverbPlugin::ConvolveStereo(const FAudioPluginSourceInputD
 void FFrequenSeeAudioReverbPlugin::ConvolveFFTStereo(const FAudioPluginSourceInputData& InputData,
 	const TArray<float>& IR, FAudioPluginSourceOutputData& OutputData)
 {
-	int Frames = FrameSize / 2;
+	int Frames = FrameSize;
 	const float* InterleavedInput = InputData.AudioBuffer->GetData();
 	float* InterleavedOutput = OutputData.AudioBuffer.GetData();
 	
