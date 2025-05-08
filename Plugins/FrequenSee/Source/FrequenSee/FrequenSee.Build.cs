@@ -1,3 +1,4 @@
+using System.IO;
 using UnrealBuildTool;
 
 public class FrequenSee : ModuleRules
@@ -13,10 +14,11 @@ public class FrequenSee : ModuleRules
 			"Projects",
 			"Landscape",
 			"AudioMixer",
-			"AudioExtensions", 
+			"AudioExtensions",
+			"Synthesis", 
 			// "CPPTest"
 		});
-		
+				
 		if (Target.bBuildEditor)
 		{
 			PrivateDependencyModuleNames.Add("UnrealEd");

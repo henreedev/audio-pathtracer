@@ -15,6 +15,13 @@
     }
   ],
   "AudioPlugins": {
-    "Occlusion": "FrequenSee"
-  }
+    "Occlusion": "FrequenSee",
+    "Reverb": "FrequenSee"
+  },
+  "Plugins": [
+    {
+      "Name": "Synthesis",
+      "Enabled": true
+    }
+  ]
 }

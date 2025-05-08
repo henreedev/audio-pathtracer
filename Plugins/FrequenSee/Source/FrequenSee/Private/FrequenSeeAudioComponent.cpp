@@ -40,6 +40,21 @@ UFrequenSeeAudioComponent::UFrequenSeeAudioComponent()
 		EnergyBuffer[Channel].Init(0.0f, NumBins);
 		ImpulseBuffer[Channel].Init(0.0f, NumSamples);
 	}
+
+	// under content
+	FString ContentDir = FPaths::ProjectContentDir();
+	FString ImpulsePath = ContentDir + TEXT("extracted_audio.txt");
+	TArray<float> LoadedIR = LoadDummyImpulseResponse(ImpulsePath);
+	FMemory::Memcpy(
+		ImpulseBuffer[0].GetData(),
+		LoadedIR.GetData(),
+		LoadedIR.Num() * sizeof(float)
+	);
+	FMemory::Memcpy(
+		ImpulseBuffer[1].GetData(),
+		LoadedIR.GetData(),
+		LoadedIR.Num() * sizeof(float)
+	);
 }
 
 UFrequenSeeAudioComponent::~UFrequenSeeAudioComponent()
@@ -82,6 +97,9 @@ void UFrequenSeeAudioComponent::BeginPlay()
 void UFrequenSeeAudioComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	FrameCount++;
+	UE_LOG(LogTemp, Warning, TEXT("FRAME DELTA: %f"), DeltaTime);
 
 	// UE_LOG(LogTemp, Warning, TEXT("Ticking FROMCOMP"));
 	// Cast rays at only certain intervals
@@ -373,7 +391,7 @@ void UFrequenSeeAudioComponent::UpdateSound()
 	// Set new volume. TODO Update this with more interesting functionality, like doing an IR on the sound buffer
 	// SetVolumeMultiplier(FMath::Clamp(TotalEnergy, 0.0f, 1.0f));
 
-	ReconstructImpulseResponse();
+	// ReconstructImpulseResponse();
 }
 
 void UFrequenSeeAudioComponent::ClearEnergyBuffer()
@@ -449,27 +467,148 @@ void UFrequenSeeAudioComponent::ReconstructImpulseResponse()
 		}
 
 		ImpulseResponse = MoveTemp(Filtered);
+		// NormalizeImpulseResponse(ImpulseResponse);
+		GenerateDummyImpulseResponse(ImpulseResponse);
+	}
+	
+
+	// test
+	// for (int32 Channel = 0; Channel < NumChannels; ++Channel)
+	// {
+	// 	for (int32 Sample = 44000; Sample < 48000; ++Sample)
+	// 	{
+	// 		ImpulseBuffer[Channel][Sample] = 1.f;
+	// 	}
+	// 	for (int32 Sample = 4000; Sample < 44000; ++Sample)
+	// 	{
+	// 		ImpulseBuffer[Channel][Sample] = 1.5f;
+	// 	}
+	// 	// Normalize the impulse response
+	// 	// NormalizeImpulseResponse(ImpulseBuffer[Channel]);
+	// }
+	
+	// // log sum of energy
+	// float EnergySumRight = 0.0f;
+	// float EnergySumLeft = 0.0f;
+	// for (int32 i = 0; i < EnergyBuffer[0].Num(); ++i)
+	// {
+	// 	EnergySumRight += EnergyBuffer[0][i];
+	// 	EnergySumLeft += EnergyBuffer[1][i];
+	// }
+	// UE_LOG(LogTemp, Warning, TEXT("Energy sum right: %f, left: %f"), EnergySumRight, EnergySumLeft);
+	//
+	// // log sum of impulse
+	// float ImpulseSumRight = 0.0f;
+	// float ImpulseSumLeft = 0.0f;
+	// for (int32 i = 0; i < ImpulseBuffer[0].Num(); ++i)
+	// {
+	// 	ImpulseSumRight += ImpulseBuffer[0][i];
+	// 	ImpulseSumLeft += ImpulseBuffer[1][i];
+	// }
+	// UE_LOG(LogTemp, Warning, TEXT("Impulse sum right: %f, left: %f"), ImpulseSumRight, ImpulseSumLeft);
+}
+
+void UFrequenSeeAudioComponent::NormalizeImpulseResponse(TArray<float>& IR)
+{
+	float SumSquares = 0.0f;
+	for (float Value : IR)
+	{
+		SumSquares += Value * Value;
+	}
+	float Norm = FMath::Sqrt(SumSquares);
+	if (Norm > 0.0f)
+	{
+		for (float& Value : IR)
+		{
+			Value /= Norm;
+		}
+	}
+}
+
+void UFrequenSeeAudioComponent::GenerateDummyImpulseResponse(TArray<float>& IR)
+{
+	const int32 IrLength = static_cast<int32>(SampleRate * SimulatedDuration);
+	const float DirectSoundAttenuation = 0.7f;
+	const float EarlyReflectionAttenuation = 0.5f;
+	const float DecayFactor = 0.999f;
+
+	// Direct sound + early reflections + exponential decay
+	IR[0] = DirectSoundAttenuation;
+    
+	// Early reflections
+	IR[static_cast<int32>(0.005f * SampleRate)] = EarlyReflectionAttenuation * 0.9f;
+	IR[static_cast<int32>(0.012f * SampleRate)] = EarlyReflectionAttenuation * 0.7f;
+	IR[static_cast<int32>(0.025f * SampleRate)] = EarlyReflectionAttenuation * 0.5f;
+
+	// Exponential decay tail
+	float currentDecay = DirectSoundAttenuation;
+	for(int32 i = 1; i < IrLength; ++i)
+	{
+		currentDecay *= DecayFactor;
+		IR[i] = FMath::Max(IR[i], currentDecay);
 	}
 
-	// log sum of energy
-	float EnergySumRight = 0.0f;
-	float EnergySumLeft = 0.0f;
-	for (int32 i = 0; i < EnergyBuffer[0].Num(); ++i)
-	{
-		EnergySumRight += EnergyBuffer[0][i];
-		EnergySumLeft += EnergyBuffer[1][i];
-	}
-	UE_LOG(LogTemp, Warning, TEXT("Energy sum right: %f, left: %f"), EnergySumRight, EnergySumLeft);
+	TArray<float> InvIR;
+	InvIR.SetNumUninitialized(IrLength);
+	// Invert the impulse response
+	// for(int32 i = 0; i < IrLength / 2; ++i)
+	// {
+	// 	InvIR[i] = IR[IrLength - 1 - i];
+	// }
 
-	// log sum of impulse
-	float ImpulseSumRight = 0.0f;
-	float ImpulseSumLeft = 0.0f;
-	for (int32 i = 0; i < ImpulseBuffer[0].Num(); ++i)
+	// Add random small variations (0.5% noise)
+	for(int32 i = 0; i < IrLength; ++i)
 	{
-		ImpulseSumRight += ImpulseBuffer[0][i];
-		ImpulseSumLeft += ImpulseBuffer[1][i];
+		IR[i] += FMath::FRandRange(-0.005f, 0.005f);
+		IR[i] = FMath::Clamp(IR[i], -1.0f, 1.0f);
+		// randomly set to 0
+		IR[i] = FMath::FRandRange(0.0f, 1.0f) < 0.9f ? 0.0f : IR[i];
+ 	}
+
+	// test
+	FMemory::Memset(IR.GetData(), 0, sizeof(float) * IR.Num());
+	IR[0] = 1.0f;
+	IR[IrLength - 1] = 1.0f;
+	// FMemory::Memset(IR.GetData() + (IR.Num() - 24000), 1, sizeof(float) * 24000);
+	
+	// invert original IR
+	for(int32 i = 0; i < IrLength / 2; ++i)
+	{
+		// IR[i] = IR[IrLength - 1 - i];
 	}
-	UE_LOG(LogTemp, Warning, TEXT("Impulse sum right: %f, left: %f"), ImpulseSumRight, ImpulseSumLeft);
+}
+
+TArray<float> UFrequenSeeAudioComponent::LoadDummyImpulseResponse(const FString& FilePath)
+{
+	// impulse response in a text file with one float per line
+	TArray<float> ImpulseResponse;
+	FString FileContent;
+	if (FFileHelper::LoadFileToString(FileContent, *FilePath))
+	{
+		TArray<FString> Lines;
+		FileContent.ParseIntoArray(Lines, TEXT("\n"), true);
+		for (const FString& Line : Lines)
+		{
+			float Value = FCString::Atof(*Line);
+			ImpulseResponse.Add(Value);
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Failed to load impulse response file: %s"), *FilePath);
+	}
+
+	// validate
+	if (ImpulseResponse.Num() == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Impulse response file is empty or invalid: %s"), *FilePath);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Loaded impulse response file: %s with %d samples"), *FilePath, ImpulseResponse.Num());
+	}
+
+	return ImpulseResponse;
 }
 	
 

@@ -33,7 +33,7 @@ void FFrequenSeeAudioOcclusionPlugin::OnReleaseSource(const uint32 SourceId)
 void FFrequenSeeAudioOcclusionPlugin::ProcessAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData)
 {
     // UFrequenSeeAudioComponent& Source = Sources[InputData.SourceId];
-    UE_LOG(LogTemp, Warning, TEXT("OCCLUSION PLUGIN PROCESSING"));
+    // UE_LOG(LogTemp, Warning, TEXT("OCCLUSION PLUGIN PROCESSING"));
     const UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(InputData.AudioComponentId);
     const UFrequenSeeAudioComponent* FrequenSeeSourceComponent = AudioComponent->GetOwner()->FindComponentByClass<UFrequenSeeAudioComponent>();
 
@@ -41,7 +41,7 @@ void FFrequenSeeAudioOcclusionPlugin::ProcessAudio(const FAudioPluginSourceInput
     float* OutBufferData = OutputData.AudioBuffer.GetData();
 
     const float OcclusionAttenuation = FrequenSeeSourceComponent->GetOcclusionAttenuation();
-    UE_LOG(LogTemp, Warning, TEXT("OCCLUSION ATTENUATION: %f"), OcclusionAttenuation);
+    // UE_LOG(LogTemp, Warning, TEXT("OCCLUSION ATTENUATION: %f"), OcclusionAttenuation);
 
     for (int SampleIndex = 0; SampleIndex < InputData.AudioBuffer->Num(); ++SampleIndex)
     {

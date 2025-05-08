@@ -36,7 +36,7 @@ public:
 	bool bIsRaycasting = false;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FrequenSeeAudioComponent")
-	int RaycastsPerTick = 5000;
+	int RaycastsPerTick = 1500;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FrequenSeeAudioComponent")
 	int RaycastBounces = 10;
@@ -82,9 +82,10 @@ public:
 
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-
 	
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
+	int FrameCount = 0;
 
 private:
 	float Timer = 0.0f;
@@ -94,7 +95,7 @@ private:
 	// dummy values assuming 44.1kHz sampling rate and 2 seconds of audio
 	int SampleRate = 48000;
 	int NumChannels = 2;
-	float SimulatedDuration = 2.0f;
+	float SimulatedDuration = 1.0f;
 	float BinDuration = 0.0001f; // 0.1ms
 	int NumBins = FMath::CeilToInt(SimulatedDuration / BinDuration);  // = 10,000
 	int NumSamples = FMath::CeilToInt(SimulatedDuration * SampleRate);
@@ -106,4 +107,8 @@ private:
 	void ClearEnergyBuffer();
 	void Accumulate(float TimeSeconds, float Value, int32 Channel);
 	void ReconstructImpulseResponse();
+	void NormalizeImpulseResponse(TArray<float>& IR);
+	void GenerateDummyImpulseResponse(TArray<float>& IR);
+	// load from text file
+	TArray<float> LoadDummyImpulseResponse(const FString& FilePath);
 };

@@ -1,7 +1,10 @@
 #pragma once
 #include "FrequenSeeAudioComponent.h"
 #include "Sound/SoundEffectSubmix.h"
+#include "ConvolutionReverb.h"
 #include "FrequenSeeAudioReverbSettings.h"
+// #include "FFTConvolver/FFTConvolver.h"
+#include "FrequenSeeFFTConvolver/FFTConvolver.h"
 #include "FrequenSeeAudioReverbPlugin.generated.h"
 
 struct FFrequenSeeAudioReverbSource
@@ -25,6 +28,8 @@ class FFrequenSeeAudioReverbPlugin : public IAudioReverb
 public:
 	FFrequenSeeAudioReverbPlugin();
 
+	FFrequenSeeAudioReverbPlugin(FVTableHelper& Helper);
+
 	~FFrequenSeeAudioReverbPlugin();
 	
 	virtual FSoundEffectSubmixPtr GetEffectSubmix() override;
@@ -44,6 +49,14 @@ public:
 private:
 	int SamplingRate = 0;
 	int FrameSize = 0;
+	// each render frame
+	int CurrentFrame = 0;
+	// each process audio call
+	int CurrentSample = 0;
+	
+	TArray<float> InLeft, InRight, OutLeft, OutRight;
+
+	// fftconvolver::FFTConvolver Convolver;	
 	
 	TArray<FFrequenSeeAudioReverbSource> Sources;
 	
@@ -54,6 +67,10 @@ private:
 	void ConvolveStereo(const FAudioPluginSourceInputData& InputData,
 		const TArray<float>& IR_Left,
 		const TArray<float>& IR_Right,
+		FAudioPluginSourceOutputData& OutputData);
+
+	void ConvolveFFTStereo(const FAudioPluginSourceInputData& InputData,
+		const TArray<float>& IR,
 		FAudioPluginSourceOutputData& OutputData);
 };
 

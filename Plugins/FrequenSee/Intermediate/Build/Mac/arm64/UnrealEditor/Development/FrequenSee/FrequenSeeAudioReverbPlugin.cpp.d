@@ -3989,8 +3989,16 @@
   Runtime/Engine/Classes/Sound/SoundEffectPreset.h \
   Runtime/Engine/Classes/Sound/SoundEffectBase.h \
   ../Intermediate/Build/Mac/UnrealEditor/Inc/Engine/UHT/SoundEffectSubmix.generated.h \
+  ../Plugins/Runtime/Synthesis/Source/Synthesis/Public/ConvolutionReverb.h \
+  Runtime/SignalProcessing/Public/DSP/AudioChannelFormatConverter.h \
+  Runtime/Core/Public/Containers/SortedMap.h \
+  Runtime/SignalProcessing/Public/DSP/ConvolutionAlgorithm.h \
+  Runtime/Core/Public/Features/IModularFeature.h \
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Public/FrequenSeeAudioReverbSettings.h \
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Intermediate/Build/Mac/UnrealEditor/Inc/FrequenSee/UHT/FrequenSeeAudioReverbSettings.generated.h \
+  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Private/FrequenSeeFFTConvolver/FFTConvolver.h \
+  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Private/FrequenSeeFFTConvolver/KissFFT/kiss_fftr.h \
+  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Private/FrequenSeeFFTConvolver/KissFFT/kiss_fft.h \
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Intermediate/Build/Mac/UnrealEditor/Inc/FrequenSee/UHT/FrequenSeeAudioReverbPlugin.generated.h \
   Runtime/Engine/Classes/Sound/SoundSubmix.h \
   Runtime/Engine/Public/AudioDeviceHandle.h \
@@ -4000,7 +4008,6 @@
   Runtime/SignalProcessing/Public/DSP/AudioFFT.h \
   Runtime/Core/Public/Misc/CoreMiscDefines.h \
   Runtime/SignalProcessing/Public/DSP/FFTAlgorithm.h \
-  Runtime/Core/Public/Features/IModularFeature.h \
   Runtime/SignalProcessing/Public/SampleBuffer.h \
   Runtime/SignalProcessing/Public/DSP/FloatArrayMath.h \
   Runtime/Core/Public/Async/AsyncWork.h \
@@ -4025,4 +4032,6 @@
   Runtime/CoreUObject/Public/UObject/GCObject.h \
   Runtime/Engine/Public/Tickable.h \
   ../Intermediate/Build/Mac/UnrealEditor/Inc/Engine/UHT/SoundSubmix.generated.h \
-  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Public/FrequenSeeAudioModule.h
+  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Public/FrequenSeeAudioModule.h \
+  ../Plugins/Runtime/Synthesis/Source/Synthesis/Classes/SubmixEffects/SubmixEffectConvolutionReverb.h \
+  ../Plugins/Runtime/Synthesis/Intermediate/Build/Mac/UnrealEditor/Inc/Synthesis/UHT/SubmixEffectConvolutionReverb.generated.h
