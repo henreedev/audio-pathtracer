@@ -72,10 +72,12 @@ struct FSoundPath
 {
 	GENERATED_BODY()
 	TArray<FSoundPathNode> Nodes;
-	float TotalLength;
-	float EnergyContribution;
-	
-	
+	float TotalLength = 0.0f;
+	float EnergyContribution = 0.0f;
+
+	// Use pointers instead of references
+	FSoundPathNode* ConnectionNodeForward = nullptr;
+	FSoundPathNode* ConnectionNodeBackward = nullptr;
 };
 
 UCLASS()
@@ -120,14 +122,15 @@ private:
 
 	UPROPERTY(VisibleAnywhere)
 	ADefaultPawn* Player;
-
+	
+	TWeakObjectPtr<APawn> PlayerPawn;
 	/** --- BIDIRECTIONAL PATH TRACING METHODS --- */
 	void GeneratePath(const AActor* ActorToIgnore, FSoundPath& OutPath) const;
 	bool ConnectSubpaths(FSoundPath& ForwardPath, FSoundPath& BackwardPath, FSoundPath& OutPath);
-	void GenerateFullPaths(const FActiveSource& Src, TArray<FSoundPath>& OutPaths); 
+	void GenerateFullPaths(const FActiveSource& Src, TArray<FSoundPath>& ForwardPathsOut, TArray<FSoundPath>& BackwardPathsOut, TArray<FSoundPath>& ConnectedPathsOut); 
 	FPathEnergyResult EvaluatePath(FSoundPath& Path) const;
 	TArray<float> GetEnergyBuffer(FActiveSource& Src) const;
-	void UpdateSources();
+	void UpdateSources(float DeltaTime);
 
 	/** --- PATH VISUALIZATION METHODS --- */
 
@@ -153,4 +156,7 @@ private:
 	 * Apportions some of the total duration to each step. 
 	 */
 	void VisualizeBDPT(const TArray<FSoundPath>& ForwardPaths, const TArray<FSoundPath>& BackwardPaths, const TArray<FSoundPath>& ConnectedPaths, float TotalDuration) const; 
+
+	const float VISUALIZE_DURATION = 10.0f;
+	float VisualizeTimer = 0.0f;
 };

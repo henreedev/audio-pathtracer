@@ -8,6 +8,7 @@ class FREQUENSEE_API UFrequenSeeAudioOcclusionSettings : public UOcclusionPlugin
 	GENERATED_BODY()
 
 	UFrequenSeeAudioOcclusionSettings();
+	~UFrequenSeeAudioOcclusionSettings();
 public:
 	
 	

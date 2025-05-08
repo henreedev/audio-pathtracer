@@ -35,27 +35,30 @@ UAudioRayTracingSubsystem::UAudioRayTracingSubsystem()
 
 void UAudioRayTracingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+    UE_LOG(LogTemp, Warning, TEXT("Initializing."));
     Super::Initialize(Collection);
-
+    
     // Find the first DefaultPawn in the world
-    if (UWorld* World = GetWorld())
-    {
-        for (TActorIterator<APawn> It(World); It; ++It)
-        {
-            Player = Cast<ADefaultPawn>(*It);
-            if (Player)
-            {
-                UE_LOG(LogTemp, Log, TEXT("Player pawn found: %s"), *Player->GetName());
-                break;
-            }
-        }
-    }
+    // if (UWorld* World = GetWorld())
+    // {
+    //     UE_LOG(LogTemp, Warning, TEXT("World found: %s"), *World->GetName());
+    //     for (TActorIterator<APawn> It(World); It; ++It)
+    //     {
+    //         Player = Cast<ADefaultPawn>(UGameplayStatics::GetPlayerPawn(World, 0));
+    //         Player = Cast<ADefaultPawn>(*It);
+    //         if (Player)
+    //         {
+    //             UE_LOG(LogTemp, Log, TEXT("Player pawn found: %s"), *Player->GetName());
+    //             break;
+    //         }
+    //     }
+    // }
 }
 
 void UAudioRayTracingSubsystem::Deinitialize()
 {
     Super::Deinitialize();
-
+    UE_LOG(LogTemp, Warning, TEXT("Deinitializing."));
     Player = nullptr;
 }
 
@@ -70,14 +73,19 @@ void UAudioRayTracingSubsystem::UnRegisterSource(UFrequenSeeAudioComponent* InCo
     ActiveSources.Remove({ InComp });
 }
 
-void UAudioRayTracingSubsystem::Tick(float /*DeltaTime*/)
+void UAudioRayTracingSubsystem::Tick(float DeltaTime)
 {
+    static float TimeBeforeFirstTick = 1.0f;
+    if (TimeBeforeFirstTick >= 0.0f)
+    {
+        TimeBeforeFirstTick -= DeltaTime;
+        return;
+    }
     if (ActiveSources.Num() == 0) return;
+    UE_LOG(LogTemp, Warning, TEXT("Ticking!"));
 
     // 1) Get listener position
-    FVector ListenerLoc;
-    FRotator ListenerRot;
-    UGameplayStatics::GetPlayerCameraManager(GetWorld(), 0)->GetCameraViewPoint(ListenerLoc, ListenerRot);
+ 
 
     // 2) Iterate sources (compact array each frame)
     ActiveSources.RemoveAllSwap([](const FActiveSource& S){ return !S.AudioComp.IsValid(); });
@@ -88,7 +96,13 @@ void UAudioRayTracingSubsystem::Tick(float /*DeltaTime*/)
         
     // }
 
-    UpdateSources();
+    if (!PlayerPawn.IsValid())
+    {
+        PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0); // returns APawn*
+        if (!PlayerPawn.IsValid()) return; // still not spawned – just wait until next tick
+    }
+
+    UpdateSources(DeltaTime);
 }
 
 void UAudioRayTracingSubsystem::TraceAndApply(FAudioDevice* /*Device*/, const FVector& Listener, const FActiveSource& Src) const
@@ -129,30 +143,72 @@ void UAudioRayTracingSubsystem::TraceAndApply(FAudioDevice* /*Device*/, const FV
     }
 }
 
-void UAudioRayTracingSubsystem::UpdateSources()
+void UAudioRayTracingSubsystem::UpdateSources(float DeltaTime)
 {
     for (FActiveSource& Src : ActiveSources)
     {
-        TArray<FSoundPath> OutPaths;
-        GenerateFullPaths(Src, OutPaths);
+        TArray<FSoundPath> ForwardPaths;
+        TArray<FSoundPath> BackwardPaths;
+        TArray<FSoundPath> ConnectedPaths;
+        GenerateFullPaths(Src, ForwardPaths, BackwardPaths, ConnectedPaths);
+        if (VisualizeTimer <= 0.0f)
+        {
+            VisualizeBDPT(ForwardPaths, BackwardPaths, ConnectedPaths, VISUALIZE_DURATION);
+
+            // Reset timer
+            VisualizeTimer = VISUALIZE_DURATION;
+        } else
+        {
+            // Decrement timer
+            VisualizeTimer -= DeltaTime;
+        }
     }
 }
 
 /** -------------------------- BIDIRECTIONAL PATH TRACING --------------------------- */
-void UAudioRayTracingSubsystem::GenerateFullPaths(const FActiveSource& Src, TArray<FSoundPath>& OutPaths)
+void UAudioRayTracingSubsystem::GenerateFullPaths(const FActiveSource& Src, TArray<FSoundPath>& ForwardPathsOut, TArray<FSoundPath>& BackwardPathsOut, TArray<FSoundPath>& ConnectedPathsOut)
 {
 
+    APawn* Listener = PlayerPawn.Get();
+    if (!Listener)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Player not found in GenerateFullPaths"));
+        return;
+    }
     constexpr int iterations = 100;
-    const auto PlayerLoc = Player->GetOwner();
-    OutPaths.Reserve(iterations);
+    
+    // if (!Player)
+    // {
+    //     // Find the first DefaultPawn in the world
+    //     if (UWorld* World = GetWorld())
+    //     {
+    //         UE_LOG(LogTemp, Warning, TEXT("World found: %s"), *World->GetName());
+    //         for (TActorIterator<APawn> It(World); It; ++It)
+    //         {
+    //             UE_LOG(LogTemp, Log, TEXT("Actor found: %s"), *It->GetName());
+    //             Player = Cast<ADefaultPawn>(*It);
+    //             Player = Cast<ADefaultPawn>(UGameplayStatics::GetPlayerPawn(World, 0));
+    //             if (Player)
+    //             {
+    //                 UE_LOG(LogTemp, Log, TEXT("Player pawn found: %s"), *Player->GetName());
+    //                 break;
+    //             }
+    //         }
+    //     }
+    // };
+
+    AActor* PlayerPtr = PlayerPawn.Get();
+    ForwardPathsOut.Reserve(iterations);
+    BackwardPathsOut.Reserve(iterations);
+    ConnectedPathsOut.Reserve(iterations); 
     for (int i = 0; i < iterations; ++i)
     {
         FSoundPath ForwardPath;
         GeneratePath(Src.AudioComp->GetOwner(), ForwardPath);
         FSoundPath BackwardPath;
-        GeneratePath(PlayerLoc, BackwardPath);
-        if (FSoundPath FullPath; ConnectSubpaths(ForwardPath, BackwardPath, FullPath))
-            OutPaths.Add(FullPath);
+        GeneratePath(PlayerPtr, BackwardPath);
+        if (FSoundPath ConnectedPath; ConnectSubpaths(ForwardPath, BackwardPath, ConnectedPath))
+            ConnectedPathsOut.Add(ConnectedPath);
     }
     
 }
@@ -190,11 +246,13 @@ bool UAudioRayTracingSubsystem::ConnectSubpaths(FSoundPath& ForwardPath, FSoundP
         {
             OutPath.Nodes.Add(BackwardPath.Nodes[i]);
         }
+        OutPath.ConnectionNodeForward = &ForwardLastNode;
+        OutPath.ConnectionNodeBackward = &BackwardLastNode;
+        
         UE_LOG(LogTemp, Warning, TEXT("Connected subpaths!"));
         return true;
     }
-
-
+    
     return false;
 }
 
@@ -345,7 +403,7 @@ float UAudioRayTracingSubsystem::DrawSegmentedLine(const FVector& Start, const F
 	
         World->GetTimerManager().SetTimer(
         	TimerHandle,
-        	FTimerDelegate::CreateLambda([=]()
+        	FTimerDelegate::CreateLambda([=, this]()
         	{
                 DrawDebugLine(
                     GetWorld(),
@@ -397,17 +455,17 @@ void UAudioRayTracingSubsystem::VisualizePath(const FSoundPath& Path, float Dura
 }
 
 /**
-     * Given forward, backward, and connected paths, shows the complete process of:
-     * 1. Sending out forward and backward paths
-     * 2. Connecting them at their endpoints -- add a new, different-colored debug line between endpoints
-     * 3. Evaluating their contribution -- redraw paths colored by their energy contribution
-     * Apportions some of the total duration to each step. 
-     */
+ * Given forward, backward, and connected paths, shows the complete process of:
+ * 1. Sending out forward and backward paths
+ * 2. Connecting them at their endpoints -- add a new, different-colored debug line between endpoints
+ * 3. Evaluating their contribution -- redraw paths colored by their energy contribution
+ * Apportions some of the total duration to each step. 
+ */
 void UAudioRayTracingSubsystem::VisualizeBDPT(const TArray<FSoundPath>& ForwardPaths, const TArray<FSoundPath>& BackwardPaths, const TArray<FSoundPath>& ConnectedPaths, float TotalDuration) const
 {
-    float DrawPathsDuration = TotalDuration * 0.5f;
-    float ShowConnectionDuration = TotalDuration * 0.25f;
-    float ShowContributionDuration = TotalDuration * 0.25f;
+    float DrawPathsDuration = TotalDuration * 0.4f;
+    float ShowConnectionDuration = TotalDuration * 0.3f;
+    float ShowContributionDuration = TotalDuration * 0.3f;
     
     // 1. Draw forward + backward paths at the same time
     // Draw forward paths
@@ -421,27 +479,41 @@ void UAudioRayTracingSubsystem::VisualizeBDPT(const TArray<FSoundPath>& ForwardP
         VisualizePath(Path, DrawPathsDuration, FColor::Orange, true);
     }
     
-    // 2. After doing above, erase existing debug lines and draw the connected paths instantly in a new color
+    // 2. After doing above, Draw the connection line gradually while deleting
     FTimerHandle ConnectedPathsTimerHandle;
     GetWorld()->GetTimerManager().SetTimer(
         ConnectedPathsTimerHandle,
-        FTimerDelegate::CreateLambda([=]()
+        FTimerDelegate::CreateLambda([=, this]()
         {
-            FlushPersistentDebugLines(GetWorld());
+            // FlushPersistentDebugLines(GetWorld());
+            // Redraw 
             for (const FSoundPath& Path : ConnectedPaths)
             {
-                VisualizePath(Path, 0.0f, FColor::Yellow, true);
+                FVector A = Path.ConnectionNodeForward->Position;
+                FVector B = Path.ConnectionNodeBackward->Position;
+                float Distance = FVector::Dist(A, B);
+                DrawSegmentedLine(
+                    Path.ConnectionNodeForward->Position,
+                    Path.ConnectionNodeBackward->Position,
+                    Distance / ShowConnectionDuration,
+                    FColor::Red,
+                    0.0f,
+                    true);
             }
+
+            
         }),
         DrawPathsDuration,
         false);
+    
     // 3. After doing above, erase existing debug lines and draw the connected paths BASED ON THEIR ENERGY
     FTimerHandle ContributionTimerHandle;
     GetWorld()->GetTimerManager().SetTimer(
         ContributionTimerHandle,
-        FTimerDelegate::CreateLambda([=]()
+        FTimerDelegate::CreateLambda([=, this]()
         {
             FlushPersistentDebugLines(GetWorld());
+            
             for (const FSoundPath& Path : ConnectedPaths)
             {
                 // Get path energy
@@ -453,10 +525,10 @@ void UAudioRayTracingSubsystem::VisualizeBDPT(const TArray<FSoundPath>& ForwardP
                 FLinearColor Green = FLinearColor(FColor::Green);
 
                 // Lerp in HSV space
-                FColor EnergyColor = FLinearColor::LerpUsingHSV(Green, DarkRed, Energy).ToFColor(true);
+                FColor EnergyColor = FLinearColor::LerpUsingHSV(DarkRed, Green, Energy).ToFColor(true);
 
                 // Draw using energy color
-                VisualizePath(Path, 0.0f, EnergyColor, true);
+                VisualizePath(Path, 0.2f, EnergyColor, true);
             }
         }),
         DrawPathsDuration + ShowConnectionDuration,
@@ -466,7 +538,7 @@ void UAudioRayTracingSubsystem::VisualizeBDPT(const TArray<FSoundPath>& ForwardP
     FTimerHandle DeleteTimerHandle;
     GetWorld()->GetTimerManager().SetTimer(
         DeleteTimerHandle,
-        FTimerDelegate::CreateLambda([=]()
+        FTimerDelegate::CreateLambda([=, this]()
         {
             FlushPersistentDebugLines(GetWorld());
         }),
