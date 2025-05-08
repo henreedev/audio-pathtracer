@@ -5,7 +5,7 @@ UFrequenSeeAudioOcclusionSettings::UFrequenSeeAudioOcclusionSettings()
 	UE_LOG(LogTemp, Warning, TEXT("Creating new occlusion settings"));
 }
 
-// UFrequenSeeAudioOcclusionSettings::~UFrequenSeeAudioOcclusionSettings()
-// {
-// 	
-// }
+UFrequenSeeAudioOcclusionSettings::~UFrequenSeeAudioOcclusionSettings()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Destroying new occlusion settings"));
+}

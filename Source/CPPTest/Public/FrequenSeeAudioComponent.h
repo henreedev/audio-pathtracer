@@ -24,8 +24,8 @@ public:
 
 	~UFrequenSeeAudioComponent();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FrequenSeeAudioComponent")
-	UFrequenSeeAudioOcclusionSettings* OcclusionSettings;
+	UPROPERTY(Transient, DuplicateTransient, NonPIEDuplicateTransient)
+	TWeakObjectPtr<UFrequenSeeAudioOcclusionSettings> OcclusionSettings;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FrequenSeeAudioComponent")
 	bool bIsRaycasting = false;
@@ -54,8 +54,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FrequenSeeAudioComponent")
 	float RaycastInterval = 1.0f;
 	
-	
-	
+
+	virtual void OnRegister() override;   // auto‑hook into subsystem
+	virtual void OnUnregister() override;
+	//
 	/*
 	 * Returns the energy of an audio ray from this source from the player's perspective.
 	 */

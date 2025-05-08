@@ -8,7 +8,7 @@
 #include "GameFramework/DefaultPawn.h"
 #include "TimerManager.h"
 #include "Components/SphereComponent.h"
-
+#include "../AudioRayTracingSubsystem.h"
 
 UFrequenSeeAudioComponent::UFrequenSeeAudioComponent()
 {
@@ -19,11 +19,8 @@ UFrequenSeeAudioComponent::UFrequenSeeAudioComponent()
 	bOverrideAttenuation = true;
 
 	// Create new instance of your occlusion settings object
-	OcclusionSettings = CreateDefaultSubobject<UFrequenSeeAudioOcclusionSettings>(TEXT("OcclusionSettings"));
-
-	// Assign the new instance to the occlusion plugin settings array
-	AttenuationOverrides.PluginSettings.OcclusionPluginSettingsArray.Empty();
-	AttenuationOverrides.PluginSettings.OcclusionPluginSettingsArray.Add(OcclusionSettings);
+	// OcclusionSettings = NewObject<UFrequenSeeAudioOcclusionSettings>(this);
+	
 
 	// You can also tweak other settings here if needed
 	AttenuationOverrides.bEnableOcclusion = true;
@@ -31,7 +28,31 @@ UFrequenSeeAudioComponent::UFrequenSeeAudioComponent()
 
 UFrequenSeeAudioComponent::~UFrequenSeeAudioComponent()
 {
-	AttenuationOverrides.PluginSettings.OcclusionPluginSettingsArray.Empty();
+	// AttenuationOverrides.PluginSettings.OcclusionPluginSettingsArray.Empty();
+}
+
+void UFrequenSeeAudioComponent::OnRegister()
+{
+	Super::OnRegister();
+	if (UWorld const* World = GetWorld())
+	{
+		if (UAudioRayTracingSubsystem* SubSys = World->GetSubsystem<UAudioRayTracingSubsystem>())
+		{
+			SubSys->RegisterSource(this);
+		}
+	}
+}
+
+void UFrequenSeeAudioComponent::OnUnregister()
+{
+	if (UWorld const* World = GetWorld())
+	{
+		if (UAudioRayTracingSubsystem* SubSys = World->GetSubsystem<UAudioRayTracingSubsystem>())
+		{
+			SubSys->UnRegisterSource(this);
+		}
+	}
+	Super::OnUnregister();
 }
 
 // Called when the game starts or when spawned
@@ -46,6 +67,14 @@ void UFrequenSeeAudioComponent::BeginPlay()
 		break; // Only need the first one
 	}
 
+	if (!OcclusionSettings.IsValid())
+	{
+		OcclusionSettings = NewObject<UFrequenSeeAudioOcclusionSettings>(this);
+	}
+
+	// Assign the new instance to the occlusion plugin settings array
+	AttenuationOverrides.PluginSettings.OcclusionPluginSettingsArray.Empty();
+	AttenuationOverrides.PluginSettings.OcclusionPluginSettingsArray.Add(OcclusionSettings.Get());
 	// Make player's hitbox bigger
 	// Player->GetCollisionComponent()->SetRelativeScale3D(FVector(15.0f, 15.0f, 15.0f));
 
