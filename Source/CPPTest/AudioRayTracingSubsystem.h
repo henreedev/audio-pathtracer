@@ -120,9 +120,6 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Audio|RayTracing")
 	TObjectPtr<UAcousticMaterial> DefaultMaterial = nullptr;
 
-	UPROPERTY(VisibleAnywhere)
-	ADefaultPawn* Player;
-	
 	TWeakObjectPtr<APawn> PlayerPawn;
 	/** --- BIDIRECTIONAL PATH TRACING METHODS --- */
 	void GeneratePath(const AActor* ActorToIgnore, FSoundPath& OutPath) const;
@@ -139,14 +136,16 @@ private:
 	 * Does so by calling Unreal's DrawDebugLine for each segment travelled along the path as time passes.
 	 * Line segments need to be manually cleaned up later if bPersistent is true.
 	 */
-	void VisualizePath(const FSoundPath& Path, float Duration, FColor Color, bool bPersistent = true) const;
+	void VisualizePath(const FSoundPath& Path, float Duration, FColor Color, bool bPersistent = true);
 
 	/**
 	 * Draws a segmented line from Start to End at the given speed. 
 	 * Line segments need to be manually cleaned up later if bPersistent is true.
 	 */
-	float DrawSegmentedLine(const FVector& Start, const FVector& End, float Speed, FColor Color,
-	                        float DrawDelay, bool bPersistent = true) const;
+	float DrawSegmentedLine(FVector& Start, FVector& End, float Speed, FColor Color,
+	                        float DrawDelay, bool bPersistent = true);
+	float DrawSegmentedLineAdvanced(const FVector& Start, const FVector& End, float Speed, FColor Color,
+							float DrawDelay, bool bPersistent = true);
 	const int DEBUG_RAY_FPS = 60; 
 	/**
 	 * Given forward, backward, and connected paths, shows the complete process of:
@@ -155,8 +154,8 @@ private:
 	 * 3. Evaluating their contribution -- redraw paths colored by their energy contribution
 	 * Apportions some of the total duration to each step. 
 	 */
-	void VisualizeBDPT(const TArray<FSoundPath>& ForwardPaths, const TArray<FSoundPath>& BackwardPaths, const TArray<FSoundPath>& ConnectedPaths, float TotalDuration) const; 
+	void VisualizeBDPT(const TArray<FSoundPath>& ForwardPaths, const TArray<FSoundPath>& BackwardPaths, const TArray<FSoundPath>& ConnectedPaths, float TotalDuration) ; 
 
-	const float VISUALIZE_DURATION = 10.0f;
+	const float VISUALIZE_DURATION = 5.0f;
 	float VisualizeTimer = 0.0f;
 };

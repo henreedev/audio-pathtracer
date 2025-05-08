@@ -59,7 +59,6 @@ void UAudioRayTracingSubsystem::Deinitialize()
 {
     Super::Deinitialize();
     UE_LOG(LogTemp, Warning, TEXT("Deinitializing."));
-    Player = nullptr;
 }
 
 
@@ -151,6 +150,10 @@ void UAudioRayTracingSubsystem::UpdateSources(float DeltaTime)
         TArray<FSoundPath> BackwardPaths;
         TArray<FSoundPath> ConnectedPaths;
         GenerateFullPaths(Src, ForwardPaths, BackwardPaths, ConnectedPaths);
+        for (FSoundPath& Path : ConnectedPaths)
+        {
+            EvaluatePath(Path);
+        }
         if (VisualizeTimer <= 0.0f)
         {
             VisualizeBDPT(ForwardPaths, BackwardPaths, ConnectedPaths, VISUALIZE_DURATION);
@@ -217,8 +220,9 @@ void UAudioRayTracingSubsystem::GenerateFullPaths(const FActiveSource& Src, TArr
         if (FSoundPath ConnectedPath; ConnectSubpaths(ForwardPath, BackwardPath, ConnectedPath))
             ConnectedPathsOut.Add(ConnectedPath);
     }
-    UE_LOG(LogTemp, Warning, TEXT("Generated full paths!"));
-    
+    // Print the number of connected paths
+    UE_LOG(LogTemp, Warning, TEXT("%d paths connected out of %d"), ConnectedPathsOut.Num(), iterations);
+    // UE_LOG(LogTemp, Warning, TEXT("Generated full paths!"));
 }
 
 bool UAudioRayTracingSubsystem::ConnectSubpaths(FSoundPath& ForwardPath, FSoundPath& BackwardPath, FSoundPath& OutPath)
@@ -257,7 +261,8 @@ bool UAudioRayTracingSubsystem::ConnectSubpaths(FSoundPath& ForwardPath, FSoundP
         OutPath.ConnectionNodeForward = &ForwardLastNode;
         OutPath.ConnectionNodeBackward = &BackwardLastNode;
         
-        UE_LOG(LogTemp, Warning, TEXT("Connected subpaths!"));
+        // UE_LOG(LogTemp, Warning, TEXT("Connected subpaths!"));
+
         return true;
     }
     
@@ -267,12 +272,13 @@ bool UAudioRayTracingSubsystem::ConnectSubpaths(FSoundPath& ForwardPath, FSoundP
 void UAudioRayTracingSubsystem::GeneratePath(const AActor* ActorToIgnore, FSoundPath& OutPath) const
 {
     // Chance for a path to NOT terminate
-    const float RUSSIAN_ROULETTE_PROB = 0.95f;
+    constexpr float RUSSIAN_ROULETTE_PROB = 0.8f;
     // Maximum distance of a single raycast
-    const float MAX_RAYCAST_DIST = 1000000.f;
+    constexpr float MAX_RAYCAST_DIST = 1000000.f;
 
     // State variables
     FVector CurrentPos = ActorToIgnore->GetActorLocation();
+    auto Mesh = ActorToIgnore->GetComponentByClass<UStaticMeshComponent>();
     FVector CurrentNormal = FVector::ZeroVector;
     auto CurrentMaterial = TWeakObjectPtr<UAcousticGeometryComponent>(nullptr);
     float CurrentProbability = 1.0f;
@@ -285,7 +291,8 @@ void UAudioRayTracingSubsystem::GeneratePath(const AActor* ActorToIgnore, FSound
         OutPath.Nodes.Add(Node);
         
         // 1. Check russian roulette probability -- if successful:
-        if (FMath::FRand() > RUSSIAN_ROULETTE_PROB)
+        float RussianRoulette = FMath::FRand();
+        if (RussianRoulette < RUSSIAN_ROULETTE_PROB)
         {
             // 2. Pick a random direction, calculate its probability FIXME assuming diffuse
             FVector Dir;
@@ -308,6 +315,11 @@ void UAudioRayTracingSubsystem::GeneratePath(const AActor* ActorToIgnore, FSound
             // Ignore self
             FCollisionQueryParams QParams(TEXT("AudioRay"), /*bTraceComplex*/ false);
             QParams.AddIgnoredActor(ActorToIgnore);
+            if (Mesh)
+            {
+                QParams.AddIgnoredComponent(Mesh);
+            }
+            
 
             // Collide with various channels
             FCollisionObjectQueryParams ObjectParams;
@@ -330,6 +342,7 @@ void UAudioRayTracingSubsystem::GeneratePath(const AActor* ActorToIgnore, FSound
             }
         } else
         {
+            // UE_LOG(LogTemp, Warning, TEXT("Russian roulette failed!"));
             break; // Failed russian roulette
         }
     }
@@ -341,16 +354,17 @@ FPathEnergyResult UAudioRayTracingSubsystem::EvaluatePath(FSoundPath& Path) cons
     constexpr float SoundSpeed = 343.0f;
     float Distance = 0.0f;
     float Energy = 1.0f;
-
+    float Probability = 1.0f;
+    
     for (int i = 0; i < Path.Nodes.Num() - 1; ++i)
     {
         FSoundPathNode& Node = Path.Nodes[i];
         FSoundPathNode& NextNode = Path.Nodes[i + 1];
         Distance += FVector::Dist(Node.Position, NextNode.Position);
-
+        
         // diffuse = reflectivity / PI, where reflectivity is 0.0-1.0
         float BSDFFactor = 1.0f;
-        if (Node.Material.IsValid())
+        if (Node.Material.IsValid() and Node.Material.Get()->Material)
         {
             BSDFFactor = Node.Material.Get()->Material->Absorption[2].Value / PI;
         }
@@ -359,6 +373,8 @@ FPathEnergyResult UAudioRayTracingSubsystem::EvaluatePath(FSoundPath& Path) cons
 
         Energy *= BSDFFactor;
         Energy *= GeometryTerm;
+ 
+        Probability *= Node.Probability;
     }
 
     
@@ -366,6 +382,7 @@ FPathEnergyResult UAudioRayTracingSubsystem::EvaluatePath(FSoundPath& Path) cons
     constexpr float AIR_ABSORPTION_FACTOR = 0.005;
     float MediaAbsorption = exp(-AIR_ABSORPTION_FACTOR * Distance);
     Energy *= MediaAbsorption;
+    Energy /= Probability;
     
     // Update path values
     Path.TotalLength = Distance;
@@ -380,35 +397,94 @@ FPathEnergyResult UAudioRayTracingSubsystem::EvaluatePath(FSoundPath& Path) cons
  * Line segments need to be manually cleaned up later if bPersistent is true.
  * GetWorld()->FlushPersistentDebugLines();
  */
-float UAudioRayTracingSubsystem::DrawSegmentedLine(const FVector& Start, const FVector& End, float Speed, FColor Color,
-                                                   float DrawDelay, bool bPersistent) const
+
+float UAudioRayTracingSubsystem::DrawSegmentedLineAdvanced(
+        const FVector& Start, const FVector& End,
+        float Speed, FColor BaseColor,
+        float DrawDelay, bool bPersistent) 
+{
+    const FVector Diff  = End - Start;
+    const float   Dist  = Diff.Length();
+    const FVector Dir   = Diff / Dist;
+
+    const float DeltaT      = 1.f / DEBUG_RAY_FPS;
+    const float Step        = Speed * DeltaT;          // world units per “tick”
+    float       travelled   = 0.f;                     // distance already covered
+    float       timePassed  = 0.f;                     // accumulates the delay
+
+    UWorld* World = GetWorld();
+
+    while (travelled < Dist)
+    {
+        const float segmentLen = FMath::Min(Step, Dist - travelled);
+        const FVector CurrentPos = Start + Dir * travelled;
+        const FVector NextPos    = CurrentPos + Dir * segmentLen;
+
+        /* -------- gradient colour (dark→full colour) -------- */
+        const float tSegmentEnd = (travelled + segmentLen) / Dist;      // 0‥1
+        FLinearColor linA       = FLinearColor(BaseColor);
+        linA *= tSegmentEnd;                                            // dark‑to‑bright
+        FColor SegColor          = linA.ToFColor(/*bSRGB*/ true);
+        /* ------------------------------------------------------- */
+
+        FTimerHandle Dummy;   // we don’t need to keep the handle if we never cancel the timer
+        World->GetTimerManager().SetTimer(
+            Dummy,
+            FTimerDelegate::CreateLambda([=, this]()
+            {
+                DrawDebugLine(
+                    GetWorld(),
+                    CurrentPos,
+                    NextPos,
+                    SegColor,
+                    bPersistent,
+                    /*LifeTime*/ 1000.f,
+                    /*Depth*/    0,
+                    /*Thickness*/1.f);
+            }),
+            (timePassed == 0.f) ? 1e-6f : timePassed,
+            /*bLoop*/ false);
+
+        travelled  += segmentLen;
+        timePassed += DeltaT;
+    }
+
+    return timePassed;
+}
+
+float UAudioRayTracingSubsystem::DrawSegmentedLine(FVector& Start, FVector& End, float Speed, FColor Color,
+                                                   float DrawDelay, bool bPersistent)
 {
     // Difference vector
-    const FVector Diff = End - Start;
-    const FVector Dir = Diff.GetSafeNormal();
-    const float Dist = Diff.Length();
+    FVector Diff = End - Start;
+    FVector Dir = Diff.GetSafeNormal();
+    float Dist = Diff.Length();
     FVector CurrentPos = Start;
 
     const float DELTATIME = 1.0f / DEBUG_RAY_FPS;
     FVector Increment = Dir * Speed * DELTATIME;
+    float DistIncrement = Increment.Length();
+    UE_LOG(LogTemp, Warning, TEXT("Total Launches: %f"), (Dist / DistIncrement));
 
     float TimePassed = 0.0f;
+    float DistTravelled = 0.f;   
     auto World = GetWorld();
-    
+    UE_LOG(LogTemp, Warning, TEXT("Start: %s"), *Start.ToString());
     // Simulate ticks with fixed delta time, drawing a ray segment on each tick with delay and length based on time passed
-    while ((CurrentPos - Start).Length() < Dist)
+    while (DistTravelled < Dist)
     {
         // Find end of ray segment
         FVector NextPos = CurrentPos + Increment;
-        if (NextPos.Length() >= Dist)
-        {
-            NextPos = End;
-        }
+        DistTravelled += DistIncrement;
+        // if ((NextPos - Start).Length() >= Dist)
+        // {
+        //     NextPos = End;
+        // }
         
         // Draw ray segment with delay equal to total time passed 
         FTimerHandle TimerHandle;
         float Delay = TimePassed;
-	
+	    UE_LOG(LogTemp, Warning, TEXT("Delay: %f"), Delay);
         World->GetTimerManager().SetTimer(
         	TimerHandle,
         	FTimerDelegate::CreateLambda([=, this]()
@@ -437,12 +513,72 @@ float UAudioRayTracingSubsystem::DrawSegmentedLine(const FVector& Start, const F
     return TimePassed;
 }
 
+// float UAudioRayTracingSubsystem::DrawSegmentedLine(const FVector& Start, const FVector& End, float Speed, FColor Color,
+//                                                    float DrawDelay, bool bPersistent) const
+// {
+//     // Difference vector
+//     const FVector Diff = End - Start;
+//     const FVector Dir = Diff.GetSafeNormal();
+//     const float Dist = Diff.Length();
+//     FVector CurrentPos = Start;
+//
+//     const float DELTATIME = 1.0f / DEBUG_RAY_FPS;
+//     FVector Increment = Dir * Speed * DELTATIME;
+//
+//     float TimePassed = 0.0f;
+//     auto World = GetWorld();
+//
+//     DrawDebugLine(
+//         World,
+//         Start,
+//         End,
+//         Color,
+//         bPersistent,
+//             1000.f,
+//         0,
+//         3.0f
+//     );
+//     
+//     // // Simulate ticks with fixed delta time, drawing a ray segment on each tick with delay and length based on time passed
+//     // while ((CurrentPos - Start).Length() < Dist)
+//     // {
+//     //     // Find end of ray segment
+//     //     FVector NextPos = CurrentPos + Increment;
+//     //     if (NextPos.Length() >= Dist)
+//     //     {
+//     //         NextPos = End;
+//     //     }
+//     //     
+//     //     // Draw ray segment with delay equal to total time passed 
+//     //     // FTimerHandle TimerHandle;
+//     //     // float Delay = TimePassed;
+// 	   //
+//     //     // DrawDebugLine(
+//     //     //     World,
+//     //     //     CurrentPos,
+//     //     //     NextPos,
+//     //     //     Color,
+//     //     //     bPersistent,
+//     //     //         1000.f,
+//     //     //     0,
+//     //     //     1.0f
+//     //     // );
+//     //
+//     //     // Increment current position
+//     //     CurrentPos = NextPos;
+//     //
+//     //     // Increment time passed
+//     //     TimePassed += DELTATIME;
+//     // }
+//     return TimePassed;
+// }
+
 /**
  * Given an FSoundPath, visualizes its entire travel over the course of the given duration.
  * Does so by calling Unreal's DrawDebugLine for each segment travelled along the path as time passes.
  * Line segments need to be manually cleaned up later if bPersistent is true.
  */
-void UAudioRayTracingSubsystem::VisualizePath(const FSoundPath& Path, float Duration, FColor Color, bool bPersistent) const
+void UAudioRayTracingSubsystem::VisualizePath(const FSoundPath& Path, float Duration, FColor Color, bool bPersistent)
 {
     float Speed = Path.TotalLength / Duration;
     float TotalTimePassed = 0.0f;
@@ -469,8 +605,9 @@ void UAudioRayTracingSubsystem::VisualizePath(const FSoundPath& Path, float Dura
  * 3. Evaluating their contribution -- redraw paths colored by their energy contribution
  * Apportions some of the total duration to each step. 
  */
-void UAudioRayTracingSubsystem::VisualizeBDPT(const TArray<FSoundPath>& ForwardPaths, const TArray<FSoundPath>& BackwardPaths, const TArray<FSoundPath>& ConnectedPaths, float TotalDuration) const
+void UAudioRayTracingSubsystem::VisualizeBDPT(const TArray<FSoundPath>& ForwardPaths, const TArray<FSoundPath>& BackwardPaths, const TArray<FSoundPath>& ConnectedPaths, float TotalDuration) 
 {
+    TotalDuration -= 0.1f; // 100ms buffer
     float DrawPathsDuration = TotalDuration * 0.4f;
     float ShowConnectionDuration = TotalDuration * 0.3f;
     float ShowContributionDuration = TotalDuration * 0.3f;
@@ -491,10 +628,12 @@ void UAudioRayTracingSubsystem::VisualizeBDPT(const TArray<FSoundPath>& ForwardP
     FTimerHandle ConnectedPathsTimerHandle;
     GetWorld()->GetTimerManager().SetTimer(
         ConnectedPathsTimerHandle,
-        FTimerDelegate::CreateLambda([=, this]()
+        FTimerDelegate::CreateLambda([&, this]()
         {
+            if (!IsValid(this)) return;
             // FlushPersistentDebugLines(GetWorld());
-            // Redraw 
+            // Redraw
+            UE_LOG(LogTemp, Warning, TEXT("%d"), ConnectedPaths.Num());
             for (const FSoundPath& Path : ConnectedPaths)
             {
                 FVector A = Path.ConnectionNodeForward->Position;
@@ -504,7 +643,7 @@ void UAudioRayTracingSubsystem::VisualizeBDPT(const TArray<FSoundPath>& ForwardP
                     Path.ConnectionNodeForward->Position,
                     Path.ConnectionNodeBackward->Position,
                     Distance / ShowConnectionDuration,
-                    FColor::Red,
+                    FColor::Blue,
                     0.0f,
                     true);
             }
@@ -520,6 +659,8 @@ void UAudioRayTracingSubsystem::VisualizeBDPT(const TArray<FSoundPath>& ForwardP
         ContributionTimerHandle,
         FTimerDelegate::CreateLambda([=, this]()
         {
+            if (!IsValid(this)) return;
+            
             FlushPersistentDebugLines(GetWorld());
             
             for (const FSoundPath& Path : ConnectedPaths)
@@ -548,7 +689,10 @@ void UAudioRayTracingSubsystem::VisualizeBDPT(const TArray<FSoundPath>& ForwardP
         DeleteTimerHandle,
         FTimerDelegate::CreateLambda([=, this]()
         {
-            FlushPersistentDebugLines(GetWorld());
+            if (IsValid(this))
+            {
+                FlushPersistentDebugLines(GetWorld());
+            }
         }),
         DrawPathsDuration + ShowConnectionDuration + ShowContributionDuration, false
     );
