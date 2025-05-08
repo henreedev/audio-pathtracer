@@ -203,13 +203,21 @@ void UAudioRayTracingSubsystem::GenerateFullPaths(const FActiveSource& Src, TArr
     ConnectedPathsOut.Reserve(iterations); 
     for (int i = 0; i < iterations; ++i)
     {
+        // Create and add forward path
         FSoundPath ForwardPath;
         GeneratePath(Src.AudioComp->GetOwner(), ForwardPath);
+        ForwardPathsOut.Add(ForwardPath);
+
+        // Create and add backward path
         FSoundPath BackwardPath;
         GeneratePath(PlayerPtr, BackwardPath);
+        BackwardPathsOut.Add(BackwardPath);
+
+        // Attempt connection, add if valid
         if (FSoundPath ConnectedPath; ConnectSubpaths(ForwardPath, BackwardPath, ConnectedPath))
             ConnectedPathsOut.Add(ConnectedPath);
     }
+    UE_LOG(LogTemp, Warning, TEXT("Generated full paths!"));
     
 }
 
