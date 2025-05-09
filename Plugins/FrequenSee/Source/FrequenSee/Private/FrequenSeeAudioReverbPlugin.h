@@ -4,6 +4,7 @@
 #include "Sound/SoundEffectSubmix.h"
 #include "FrequenSeeAudioReverbSettings.h"
 #include "CircularBuffer.h"
+#include "FrequenSeeFFTConvolver/KissFFT/kiss_fftr.h"
 #include "FrequenSeeFFTConvolver/FFTConvolver/FFTConvolver.h"
 #include "FrequenSeeAudioReverbPlugin.generated.h"
 
@@ -65,6 +66,12 @@ private:
 	TArray<float> CurrAudioTailRight;
 	TArray<float> ConvOutputLeft;
 	TArray<float> ConvOutputRight;
+	kiss_fftr_cfg ForwardCfg;
+	kiss_fftr_cfg InverseCfg;
+	TArray<kiss_fft_cpx> OutputFreq;
+	TArray<kiss_fft_cpx> InputFreq;
+	TArray<kiss_fft_cpx> IRFreq;
+	TArray<float> TimeDomainOutput;
 	
 	TArray<FFrequenSeeAudioReverbSource> Sources;
 	

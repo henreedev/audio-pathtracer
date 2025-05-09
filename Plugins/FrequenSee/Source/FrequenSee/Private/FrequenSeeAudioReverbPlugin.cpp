@@ -2,7 +2,6 @@
 #include "Sound/SoundSubmix.h"
 #include "FrequenSeeAudioModule.h"
 #include "ConvolutionReverb.h"
-#include "FrequenSeeFFTConvolver/KissFFT/kiss_fftr.h"
 #include "HAL/UnrealMemory.h"
 #include "Components/AudioComponent.h"
 #include "SubmixEffects/SubmixEffectConvolutionReverb.h"
@@ -39,6 +38,8 @@ FFrequenSeeAudioReverbPlugin::FFrequenSeeAudioReverbPlugin(FVTableHelper& Helper
 
 FFrequenSeeAudioReverbPlugin::~FFrequenSeeAudioReverbPlugin()
 {
+	kiss_fftr_free(ForwardCfg);
+	kiss_fftr_free(InverseCfg);
 }
 
 FSoundEffectSubmixPtr FFrequenSeeAudioReverbPlugin::GetEffectSubmix()
@@ -85,6 +86,15 @@ void FFrequenSeeAudioReverbPlugin::Initialize(const FAudioPluginInitializationPa
 	// ConvOutputRight.SetNumZeroed(CurrTailSize + IRSize - 1);
 	ConvOutputLeft.SetNumZeroed(CurrTailSize);
 	ConvOutputRight.SetNumZeroed(CurrTailSize);
+
+	const int32 FFTSize = FMath::RoundUpToPowerOfTwo(CurrTailSize); // Next power of 2 ≥ 97022
+	const int32 NumFreqBins = FFTSize / 2 + 1;
+	ForwardCfg = kiss_fftr_alloc(FFTSize, 0, nullptr, nullptr);
+	InverseCfg = kiss_fftr_alloc(FFTSize, 1, nullptr, nullptr);
+	OutputFreq.SetNumZeroed(NumFreqBins);
+	InputFreq.SetNumZeroed(NumFreqBins);
+	IRFreq.SetNumZeroed(NumFreqBins);
+	TimeDomainOutput.SetNumZeroed(FFTSize);
 
 	UE_LOG(LogTemp, Warning, TEXT("Initializing reverb plugin"));
 }
@@ -181,27 +191,28 @@ void FFrequenSeeAudioReverbPlugin::ConvolveFFT(const TArray<float>& IR, const TA
     FMemory::Memcpy(IRPadded.GetData(), IR.GetData(), sizeof(float) * IRSize);
 
     // Allocate KissFFT configs
-    kiss_fftr_cfg ForwardCfg = kiss_fftr_alloc(FFTSize, 0, nullptr, nullptr);
-    kiss_fftr_cfg InverseCfg = kiss_fftr_alloc(FFTSize, 1, nullptr, nullptr);
+    // kiss_fftr_cfg ForwardCfg = kiss_fftr_alloc(FFTSize, 0, nullptr, nullptr);
+    // kiss_fftr_cfg InverseCfg = kiss_fftr_alloc(FFTSize, 1, nullptr, nullptr);
 
     // Allocate FFT buffers
-    TArray<kiss_fft_cpx> InputFreq;
-    InputFreq.SetNumZeroed(NumFreqBins);
+    // TArray<kiss_fft_cpx> InputFreq;
+    // InputFreq.SetNumZeroed(NumFreqBins);
 
-    TArray<kiss_fft_cpx> IRFreq;
-    IRFreq.SetNumZeroed(NumFreqBins);
+    // TArray<kiss_fft_cpx> IRFreq;
+    // IRFreq.SetNumZeroed(NumFreqBins);
 
-    TArray<kiss_fft_cpx> OutputFreq;
-    OutputFreq.SetNumZeroed(NumFreqBins);
+    // TArray<kiss_fft_cpx> OutputFreq;
+    // OutputFreq.SetNumZeroed(NumFreqBins);
 
-    TArray<float> TimeDomainOutput;
-    TimeDomainOutput.SetNumZeroed(FFTSize);
+    // TArray<float> TimeDomainOutput;
+    // TimeDomainOutput.SetNumZeroed(FFTSize);
 
     // Perform FFTs
     kiss_fftr(ForwardCfg, InputPadded.GetData(), InputFreq.GetData());
     kiss_fftr(ForwardCfg, IRPadded.GetData(), IRFreq.GetData());
 
     // Multiply frequency components
+#pragma loop unroll 4
     for (int32 i = 0; i < NumFreqBins; ++i)
     {
         const kiss_fft_cpx& A = InputFreq[i];
@@ -227,8 +238,8 @@ void FFrequenSeeAudioReverbPlugin::ConvolveFFT(const TArray<float>& IR, const TA
     FMemory::Memcpy(Output.GetData(), TimeDomainOutput.GetData(), sizeof(float) * ConvSize);
 
     // Free FFT plans
-    kiss_fftr_free(ForwardCfg);
-    kiss_fftr_free(InverseCfg);
+    // kiss_fftr_free(ForwardCfg);
+    // kiss_fftr_free(InverseCfg);
 }
 
 // void FFrequenSeeAudioReverbPlugin::ConvolveFFT(const TArray<float>& IR, const TArray<float>& Input, TArray<float>& Output)
