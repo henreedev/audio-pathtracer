@@ -6,7 +6,7 @@
 #include "HAL/UnrealMemory.h"
 
 
-void FrequenSeeAudioOcclusionPlugin::Initialize(const FAudioPluginInitializationParams InitializationParams)
+void FFrequenSeeAudioOcclusionPlugin::Initialize(const FAudioPluginInitializationParams InitializationParams)
 {
     
     SamplingRate = InitializationParams.SampleRate;
@@ -18,24 +18,22 @@ void FrequenSeeAudioOcclusionPlugin::Initialize(const FAudioPluginInitialization
     // Sources.AddDefaulted(InitializationParams.NumSources);
 }
 
-void FrequenSeeAudioOcclusionPlugin::OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, UOcclusionPluginSourceSettingsBase* InSettings)
+void FFrequenSeeAudioOcclusionPlugin::OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, UOcclusionPluginSourceSettingsBase* InSettings)
 {
     // log
     UE_LOG(LogTemp, Warning, TEXT("Initializing source %d"), SourceId);
 
-    // UFrequenSeeAudioComponent& Source = Sources[SourceId];
-
 }
 
-void FrequenSeeAudioOcclusionPlugin::OnReleaseSource(const uint32 SourceId)
+void FFrequenSeeAudioOcclusionPlugin::OnReleaseSource(const uint32 SourceId)
 {
     
 }
 
-void FrequenSeeAudioOcclusionPlugin::ProcessAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData)
+void FFrequenSeeAudioOcclusionPlugin::ProcessAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData)
 {
     // UFrequenSeeAudioComponent& Source = Sources[InputData.SourceId];
-    UE_LOG(LogTemp, Warning, TEXT("OCCLUSION PLUGIN PROCESSING"));
+    // UE_LOG(LogTemp, Warning, TEXT("OCCLUSION PLUGIN PROCESSING"));
     const UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(InputData.AudioComponentId);
     const UFrequenSeeAudioComponent* FrequenSeeSourceComponent = AudioComponent->GetOwner()->FindComponentByClass<UFrequenSeeAudioComponent>();
 
@@ -43,11 +41,11 @@ void FrequenSeeAudioOcclusionPlugin::ProcessAudio(const FAudioPluginSourceInputD
     float* OutBufferData = OutputData.AudioBuffer.GetData();
 
     const float OcclusionAttenuation = FrequenSeeSourceComponent->GetOcclusionAttenuation();
-    UE_LOG(LogTemp, Warning, TEXT("OCCLUSION ATTENUATION: %f"), OcclusionAttenuation);
+    // UE_LOG(LogTemp, Warning, TEXT("OCCLUSION ATTENUATION: %f"), OcclusionAttenuation);
 
     for (int SampleIndex = 0; SampleIndex < InputData.AudioBuffer->Num(); ++SampleIndex)
     {
-        OutBufferData[SampleIndex] = InBufferData[SampleIndex] * OcclusionAttenuation;
+        // OutBufferData[SampleIndex] = InBufferData[SampleIndex] * OcclusionAttenuation;
     }
 }
 
@@ -68,7 +66,7 @@ TAudioOcclusionPtr FFrequenSeeAudioOcclusionPluginFactory::CreateNewOcclusionPlu
     // log
     UE_LOG(LogTemp, Warning, TEXT("Creating new occlusion plugin"));
     
-    return MakeShared<FrequenSeeAudioOcclusionPlugin>();
+    return MakeShared<FFrequenSeeAudioOcclusionPlugin>();
 }
 
 UClass* FFrequenSeeAudioOcclusionPluginFactory::GetCustomOcclusionSettingsClass() const

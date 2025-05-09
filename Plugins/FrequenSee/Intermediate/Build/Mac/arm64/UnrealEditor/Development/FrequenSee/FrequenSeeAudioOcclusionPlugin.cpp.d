@@ -3940,7 +3940,7 @@
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Private/FrequenSeeAudioOcclusionPlugin.cpp \
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Intermediate/Build/Mac/arm64/UnrealEditor/Development/FrequenSee/Definitions.FrequenSee.h \
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Private/FrequenSeeAudioOcclusionPlugin.h \
-  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Source/CPPTest/Public/FrequenSeeAudioComponent.h \
+  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Public/FrequenSeeAudioComponent.h \
   Runtime/Core/Public/CoreMinimal.h \
   Runtime/Engine/Classes/Components/AudioComponent.h \
   Runtime/Engine/Public/Audio.h \
@@ -3978,5 +3978,10 @@
   Runtime/Engine/Classes/Sound/SoundSubmixSend.h \
   Runtime/Engine/Classes/Sound/SoundSourceBusSend.h \
   ../Intermediate/Build/Mac/UnrealEditor/Inc/Engine/UHT/AudioComponent.generated.h \
-  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Intermediate/Build/Mac/UnrealEditor/Inc/CPPTest/UHT/FrequenSeeAudioComponent.generated.h \
+  Runtime/Engine/Classes/GameFramework/DefaultPawn.h \
+  Runtime/Engine/Classes/GameFramework/Pawn.h \
+  ../Intermediate/Build/Mac/UnrealEditor/Inc/Engine/UHT/DefaultPawn.generated.h \
+  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Intermediate/Build/Mac/UnrealEditor/Inc/FrequenSee/UHT/FrequenSeeAudioComponent.generated.h \
+  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Public/FrequenSeeAudioOcclusionSettings.h \
+  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Intermediate/Build/Mac/UnrealEditor/Inc/FrequenSee/UHT/FrequenSeeAudioOcclusionSettings.generated.h \
   Runtime/Engine/Classes/GameFramework/Actor.h

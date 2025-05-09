@@ -1,10 +1,12 @@
 #pragma once
 
 // class FFrequenSeeAudioSpatializationPluginFactory;
-class FFrequenSeeAudioOcclusionPluginFactory;
-// class FFrequenSeeAdioReverbPluginFactory;
+// class FFrequenSeeAudioOcclusionPluginFactory;
+// class FFrequenSeeAudioReverbPluginFactory;
+#include "FrequenSeeAudioOcclusionPlugin.h"
+#include "FrequenSeeAudioReverbPlugin.h"
 
-class FFrequenSeeAudioModule: public IModuleInterface
+class FREQUENSEE_API FFrequenSeeAudioModule: public IModuleInterface
 {
 public:
 	/** Called when the module is being loaded. */
@@ -18,5 +20,5 @@ private:
 	TUniquePtr<FFrequenSeeAudioOcclusionPluginFactory> OcclusionPluginFactory;
 
 	/** Factory object used to instantiate the reverb plugin. */
-	// TUniquePtr<FFrequenSeeReverbPluginFactory> ReverbPluginFactory;
+	TUniquePtr<FFrequenSeeAudioReverbPluginFactory> ReverbPluginFactory;
 };

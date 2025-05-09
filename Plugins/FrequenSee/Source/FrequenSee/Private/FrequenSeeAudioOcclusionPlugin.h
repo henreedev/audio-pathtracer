@@ -1,7 +1,7 @@
 #pragma once
 #include "FrequenSeeAudioComponent.h"
 
-class FrequenSeeAudioOcclusionPlugin : public IAudioOcclusion
+class FREQUENSEE_API FFrequenSeeAudioOcclusionPlugin : public IAudioOcclusion
 {
 public:
 	virtual void Initialize(const FAudioPluginInitializationParams InitializationParams) override;
@@ -21,7 +21,7 @@ private:
 	int FrameSize = 0;
 
 	/** Lazy-initialized state for as many sources as we can render simultaneously. */
-	TArray<UFrequenSeeAudioComponent> Sources;
+	// TArray<UFrequenSeeAudioComponent> Sources;
 };
 
 class FFrequenSeeAudioOcclusionPluginFactory : public IAudioOcclusionFactory

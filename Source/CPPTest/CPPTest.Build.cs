@@ -16,11 +16,12 @@ public class CPPTest : ModuleRules
             "Engine",
             "InputCore",
             "EnhancedInput",
-            "AudioMixer" 
+            "AudioMixer",
+            "Synthesis"
         });
 
-		PrivateDependencyModuleNames.AddRange(new string[] { "FrequenSee" });
 		PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "ThirdParty", "KissFFT"));
+		PrivateDependencyModuleNames.AddRange(new string[] { "FrequenSee" });
 		
 		// Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });

@@ -29,6 +29,7 @@ struct Z_Construct_UClass_UFrequenSeeAudioOcclusionSettings_Statics
 {
 #if WITH_METADATA
 	static constexpr UECodeGen_Private::FMetaDataPairParam Class_MetaDataParams[] = {
+		{ "BlueprintType", "true" },
 		{ "IncludePath", "FrequenSeeAudioOcclusionSettings.h" },
 		{ "ModuleRelativePath", "Public/FrequenSeeAudioOcclusionSettings.h" },
 	};
@@ -56,7 +57,7 @@ const UECodeGen_Private::FClassParams Z_Construct_UClass_UFrequenSeeAudioOcclusi
 	0,
 	0,
 	0,
-	0x000010A0u,
+	0x003030A0u,
 	METADATA_PARAMS(UE_ARRAY_COUNT(Z_Construct_UClass_UFrequenSeeAudioOcclusionSettings_Statics::Class_MetaDataParams), Z_Construct_UClass_UFrequenSeeAudioOcclusionSettings_Statics::Class_MetaDataParams)
 };
 UClass* Z_Construct_UClass_UFrequenSeeAudioOcclusionSettings()
@@ -71,7 +72,6 @@ template<> FREQUENSEE_API UClass* StaticClass<UFrequenSeeAudioOcclusionSettings>
 {
 	return UFrequenSeeAudioOcclusionSettings::StaticClass();
 }
-UFrequenSeeAudioOcclusionSettings::UFrequenSeeAudioOcclusionSettings(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {}
 DEFINE_VTABLE_PTR_HELPER_CTOR(UFrequenSeeAudioOcclusionSettings);
 UFrequenSeeAudioOcclusionSettings::~UFrequenSeeAudioOcclusionSettings() {}
 // End Class UFrequenSeeAudioOcclusionSettings
@@ -80,10 +80,10 @@ UFrequenSeeAudioOcclusionSettings::~UFrequenSeeAudioOcclusionSettings() {}
 struct Z_CompiledInDeferFile_FID_emrearslan_Desktop_hw_cs2240_audio_pathtracer_Plugins_FrequenSee_Source_FrequenSee_Public_FrequenSeeAudioOcclusionSettings_h_Statics
 {
 	static constexpr FClassRegisterCompiledInInfo ClassInfo[] = {
-		{ Z_Construct_UClass_UFrequenSeeAudioOcclusionSettings, UFrequenSeeAudioOcclusionSettings::StaticClass, TEXT("UFrequenSeeAudioOcclusionSettings"), &Z_Registration_Info_UClass_UFrequenSeeAudioOcclusionSettings, CONSTRUCT_RELOAD_VERSION_INFO(FClassReloadVersionInfo, sizeof(UFrequenSeeAudioOcclusionSettings), 972167101U) },
+		{ Z_Construct_UClass_UFrequenSeeAudioOcclusionSettings, UFrequenSeeAudioOcclusionSettings::StaticClass, TEXT("UFrequenSeeAudioOcclusionSettings"), &Z_Registration_Info_UClass_UFrequenSeeAudioOcclusionSettings, CONSTRUCT_RELOAD_VERSION_INFO(FClassReloadVersionInfo, sizeof(UFrequenSeeAudioOcclusionSettings), 2063645828U) },
 	};
 };
-static FRegisterCompiledInInfo Z_CompiledInDeferFile_FID_emrearslan_Desktop_hw_cs2240_audio_pathtracer_Plugins_FrequenSee_Source_FrequenSee_Public_FrequenSeeAudioOcclusionSettings_h_477871535(TEXT("/Script/FrequenSee"),
+static FRegisterCompiledInInfo Z_CompiledInDeferFile_FID_emrearslan_Desktop_hw_cs2240_audio_pathtracer_Plugins_FrequenSee_Source_FrequenSee_Public_FrequenSeeAudioOcclusionSettings_h_21311502(TEXT("/Script/FrequenSee"),
 	Z_CompiledInDeferFile_FID_emrearslan_Desktop_hw_cs2240_audio_pathtracer_Plugins_FrequenSee_Source_FrequenSee_Public_FrequenSeeAudioOcclusionSettings_h_Statics::ClassInfo, UE_ARRAY_COUNT(Z_CompiledInDeferFile_FID_emrearslan_Desktop_hw_cs2240_audio_pathtracer_Plugins_FrequenSee_Source_FrequenSee_Public_FrequenSeeAudioOcclusionSettings_h_Statics::ClassInfo),
 	nullptr, 0,
 	nullptr, 0);

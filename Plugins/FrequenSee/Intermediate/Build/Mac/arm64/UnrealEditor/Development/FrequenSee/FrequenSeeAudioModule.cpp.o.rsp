@@ -285,6 +285,7 @@
 -I"../Intermediate/Build/Mac/UnrealEditor/Inc/AnimationEditMode/UHT"
 -I"Editor/AnimationEditMode/Public"
 -I"/Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Intermediate/Build/Mac/UnrealEditor/Inc/CPPTest/UHT"
+-I"/Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Source/CPPTest/ThirdParty/KissFFT"
 -I"/Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Source"
 -I"/Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Source/CPPTest/Public"
 -I"../Plugins/EnhancedInput/Intermediate/Build/Mac/UnrealEditor/Inc/EnhancedInput/UHT"
