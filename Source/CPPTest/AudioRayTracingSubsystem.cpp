@@ -81,7 +81,6 @@ void UAudioRayTracingSubsystem::Tick(float DeltaTime)
         return;
     }
     if (ActiveSources.Num() == 0) return;
-    UE_LOG(LogTemp, Warning, TEXT("Ticking!"));
 
     // 1) Get listener position
  
@@ -142,7 +141,7 @@ void UAudioRayTracingSubsystem::TraceAndApply(FAudioDevice* /*Device*/, const FV
     }
 }
 
-void UAudioRayTracingSubsystem::UpdateSources(float DeltaTime)
+void UAudioRayTracingSubsystem::UpdateSources(float DeltaTime, bool bForceUpdate)
 {
     for (FActiveSource& Src : ActiveSources)
     {
@@ -150,21 +149,53 @@ void UAudioRayTracingSubsystem::UpdateSources(float DeltaTime)
         TArray<FSoundPath> BackwardPaths;
         TArray<FSoundPath> ConnectedPaths;
         GenerateFullPaths(Src, ForwardPaths, BackwardPaths, ConnectedPaths);
+
+        for (FSoundPath& Path : ForwardPaths)
+        {
+            EvaluatePath(Path);
+        }
+        for (FSoundPath& Path : BackwardPaths)
+        {
+            EvaluatePath(Path);
+        }
         for (FSoundPath& Path : ConnectedPaths)
         {
             EvaluatePath(Path);
         }
-        if (VisualizeTimer <= 0.0f)
-        {
-            VisualizeBDPT(ForwardPaths, BackwardPaths, ConnectedPaths, VISUALIZE_DURATION);
-
-            // Reset timer
-            VisualizeTimer = VISUALIZE_DURATION;
-        } else
-        {
-            // Decrement timer
-            VisualizeTimer -= DeltaTime;
-        }
+        // if (bForceUpdate)
+        // {
+        //     
+        //     VisualizeBDPT(ForwardPaths, BackwardPaths, ConnectedPaths, VISUALIZE_DURATION);
+        // // FIXME Timing only intended for 1 source
+        // } else if (VisualizeTimer <= 0.0f)
+        // {
+        //     TArray<FSoundPath> ForwardPaths;
+        //     TArray<FSoundPath> BackwardPaths;
+        //     TArray<FSoundPath> ConnectedPaths;
+        //     GenerateFullPaths(Src, ForwardPaths, BackwardPaths, ConnectedPaths);
+        //
+        //     for (FSoundPath& Path : ForwardPaths)
+        //     {
+        //         EvaluatePath(Path);
+        //     }
+        //     for (FSoundPath& Path : BackwardPaths)
+        //     {
+        //         EvaluatePath(Path);
+        //     }
+        //     for (FSoundPath& Path : ConnectedPaths)
+        //     {
+        //         EvaluatePath(Path);
+        //     }
+        //     // VisualizeBDPT(ForwardPaths, BackwardPaths, ConnectedPaths, VISUALIZE_DURATION);
+        //
+        //     // Reset timer
+        //     VisualizeTimer = VISUALIZE_DURATION;
+        // } else
+        // {
+        //     // Decrement timer
+        //     VisualizeTimer -= DeltaTime;
+        // }
+        
     }
 }
 
@@ -178,7 +209,7 @@ void UAudioRayTracingSubsystem::GenerateFullPaths(const FActiveSource& Src, TArr
         UE_LOG(LogTemp, Warning, TEXT("Player not found in GenerateFullPaths"));
         return;
     }
-    constexpr int iterations = 100;
+    constexpr int iterations = 1;
     
     // if (!Player)
     // {
@@ -243,23 +274,23 @@ bool UAudioRayTracingSubsystem::ConnectSubpaths(FSoundPath& ForwardPath, FSoundP
 
     // Raycast in chosen direction -- CHECK IF IT **DOESN'T** HIT
     if (not GetWorld()->LineTraceSingleByObjectType(
-        H, ForwardLastNode.Position, BackwardLastNode.Position, ObjectParams
+        H, ForwardLastNode.Position, BackwardLastNode.Position - 0.1f * (BackwardLastNode.Position - ForwardLastNode.Position).GetSafeNormal(), ObjectParams
         ))
     {
         // Connect the paths
         
         // Reserve space
-        OutPath.Nodes.Reserve(ForwardPath.Nodes.Num() + BackwardPath.Nodes.Num());
+        OutPath.Nodes.Reset(ForwardPath.Nodes.Num() + BackwardPath.Nodes.Num());
 
         // Add nodes to out path
         OutPath.Nodes.Append(ForwardPath.Nodes);
         // Add nodes in reverse
-        for (int i = BackwardPath.Nodes.Num() - 1; i >= 0; --i)
+        for (int i = BackwardPath.Nodes.Num( ) - 1; i >= 0; --i)
         {
             OutPath.Nodes.Add(BackwardPath.Nodes[i]);
         }
-        OutPath.ConnectionNodeForward = &ForwardLastNode;
-        OutPath.ConnectionNodeBackward = &BackwardLastNode;
+        OutPath.ForwardConnectionPos = ForwardLastNode.Position;
+        OutPath.BackwardConnectionPos = BackwardLastNode.Position;
         
         // UE_LOG(LogTemp, Warning, TEXT("Connected subpaths!"));
 
@@ -272,7 +303,7 @@ bool UAudioRayTracingSubsystem::ConnectSubpaths(FSoundPath& ForwardPath, FSoundP
 void UAudioRayTracingSubsystem::GeneratePath(const AActor* ActorToIgnore, FSoundPath& OutPath) const
 {
     // Chance for a path to NOT terminate
-    constexpr float RUSSIAN_ROULETTE_PROB = 0.8f;
+    constexpr float RUSSIAN_ROULETTE_PROB = 0.9f;
     // Maximum distance of a single raycast
     constexpr float MAX_RAYCAST_DIST = 1000000.f;
 
@@ -336,7 +367,7 @@ void UAudioRayTracingSubsystem::GeneratePath(const AActor* ActorToIgnore, FSound
                 ))
             {
                 // 4. If hit, update current position and normal
-                CurrentPos = H.ImpactPoint;
+                CurrentPos = H.ImpactPoint + 0.1 * H.ImpactNormal;
                 CurrentNormal = H.ImpactNormal;
                 CurrentMaterial = H.GetActor()->FindComponentByClass<UAcousticGeometryComponent>();
             }
@@ -464,12 +495,18 @@ float UAudioRayTracingSubsystem::DrawSegmentedLine(FVector& Start, FVector& End,
     FVector Diff = End - Start;
     FVector Dir = Diff.GetSafeNormal();
     float Dist = Diff.Length();
+
+    if (Dist < 0.01f)
+    {
+        return 0.f;
+    }
     FVector CurrentPos = Start;
 
     
     const float DELTATIME = 1.0f / DEBUG_RAY_FPS;
     FVector Increment = Dir * Speed * DELTATIME;
     float DistIncrement = Increment.Length();
+    UE_LOG(LogTemp, Warning, TEXT("DistIncrement: %f"), DistIncrement);
     UE_LOG(LogTemp, Warning, TEXT("Total Launches: %f"), (Dist / DistIncrement));
 
     // Log all variables
@@ -497,15 +534,15 @@ float UAudioRayTracingSubsystem::DrawSegmentedLine(FVector& Start, FVector& End,
         // Find end of ray segment
         FVector NextPos = CurrentPos + Increment;
         DistTravelled += DistIncrement;
-        // if ((NextPos - Start).Length() >= Dist)
-        // {
-        //     NextPos = End;
-        // }
+        if (DistTravelled >= Dist)
+        {
+            NextPos = End;
+        }
         
         // Draw ray segment with delay equal to total time passed 
         FTimerHandle TimerHandle;
         float Delay = TimePassed;
-	    UE_LOG(LogTemp, Warning, TEXT("Delay: %f"), Delay);
+	    // UE_LOG(LogTemp, Warning, TEXT("Delay: %f"), Delay);
         World->GetTimerManager().SetTimer(
         	TimerHandle,
         	FTimerDelegate::CreateLambda([=, this]()
@@ -518,10 +555,10 @@ float UAudioRayTracingSubsystem::DrawSegmentedLine(FVector& Start, FVector& End,
                     bPersistent,
                         1000.f,
                     0,
-                    1.0f
+                    10.0f
                 );
         	}),
-        	Delay == 0 ? 0.0000001f : Delay,
+        	(DrawDelay + Delay) == 0 ? 0.0000001f : DrawDelay + Delay,
         	false
         );
 
@@ -533,6 +570,7 @@ float UAudioRayTracingSubsystem::DrawSegmentedLine(FVector& Start, FVector& End,
 
         if (TimePassed > 5.0f)
         {
+            UE_LOG(LogTemp, Warning, TEXT("TimePassed: %f"), TimePassed);
             break;
         }
     }
@@ -617,6 +655,7 @@ void UAudioRayTracingSubsystem::VisualizePath(const FSoundPath& Path, float Dura
 
         // Draw line between them at a fixed speed, returning how long it takes to draw the line at that pace
         // Delay the drawing by time taken for previous lines so far
+        UE_LOG(LogTemp, Warning, TEXT("Speed: %f"), Speed);
         float TimePassed = DrawSegmentedLine(CurrentNode.Position, NextNode.Position, Speed, Color, TotalTimePassed, bPersistent);
 
         // Add time taken to total count for future delays
@@ -650,36 +689,26 @@ void UAudioRayTracingSubsystem::VisualizeBDPT(const TArray<FSoundPath>& ForwardP
         VisualizePath(Path, DrawPathsDuration, FColor::Orange, true);
     }
     
-    // 2. After doing above, Draw the connection line gradually while deleting
+    // 2. After doing above, Draw the connection line gradually
     FTimerHandle ConnectedPathsTimerHandle;
+    TArray<FSoundPath> ConnectedPathsCopy = ConnectedPaths;
     GetWorld()->GetTimerManager().SetTimer(
         ConnectedPathsTimerHandle,
-        FTimerDelegate::CreateLambda([=, this]()
+        FTimerDelegate::CreateLambda([this, ConnectedPathsCopy]() mutable
         {
             if (!IsValid(this)) return;
-            // FlushPersistentDebugLines(GetWorld());
-            // Redraw
-            UE_LOG(LogTemp, Warning, TEXT("%d"), ConnectedPaths.Num());
-            for (const FSoundPath& Path : ConnectedPaths)
+            for (const FSoundPath& Path : ConnectedPathsCopy)
             {
-                FVector A = Path.ConnectionNodeForward->Position;
-                FVector B = Path.ConnectionNodeBackward->Position;
-                UE_LOG(LogTemp, Warning, TEXT("A: %s"), *A.ToString());
-                UE_LOG(LogTemp, Warning, TEXT("B: %s"), *B.ToString());
+                // if (!Path.ForwardConnectionPos || !Path.BackwardConnectionPos) continue;
+                FVector A = Path.ForwardConnectionPos;
+                FVector B = Path.BackwardConnectionPos;
                 float Distance = FVector::Dist(A, B);
-                // DrawSegmentedLine(
-                //     Path.ConnectionNodeForward->Position,
-                //     Path.ConnectionNodeBackward->Position,
-                //     Distance / ShowConnectionDuration,
-                //     FColor::Blue,
-                //     0.0f,
-                //     true);
+                DrawSegmentedLine(A, B, Distance / 0.15f, FColor::Blue, 0.0f, true);
             }
-
-            
         }),
         DrawPathsDuration,
-        false);
+        false
+    );
     
     // 3. After doing above, erase existing debug lines and draw the connected paths BASED ON THEIR ENERGY
     FTimerHandle ContributionTimerHandle;
@@ -705,7 +734,7 @@ void UAudioRayTracingSubsystem::VisualizeBDPT(const TArray<FSoundPath>& ForwardP
                 FColor EnergyColor = FLinearColor::LerpUsingHSV(DarkRed, Green, Energy).ToFColor(true);
 
                 // Draw using energy color
-                VisualizePath(Path, 0.2f, EnergyColor, true);
+                VisualizePath(Path, 1.0f, EnergyColor, true);
             }
         }),
         DrawPathsDuration + ShowConnectionDuration,
