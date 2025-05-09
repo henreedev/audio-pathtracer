@@ -114,93 +114,109 @@ void UAudioRayTracingSubsystem::TraceAndApply(FAudioDevice* /*Device*/, const FV
     QParams.AddIgnoredActor(Src.AudioComp->GetOwner());
 
     TArray<FHitResult> Hits;
-    for (int32 i = 0; i < NumRays; ++i)
-    {
-        // Uniformly jitter direction in a cone around the direct path (quick & dirty)
-        const FVector Dir     = (SourceLoc - Listener).GetSafeNormal();
-        const FVector Jitter  = FMath::VRandCone(Dir, FMath::DegreesToRadians(15.f));
-        const FVector End     = Listener + Jitter * 5000.f;
-
-        FHitResult Hit;
-        if (GetWorld()->LineTraceSingleByChannel(
-                Hit, Listener, End, ECC_Visibility, QParams))
-        {
-            ++BlockedRays;
-            if (Hit.bBlockingHit) Hits.Add(Hit);
-
-#if WITH_EDITOR
-            DrawDebugLine(GetWorld(), Listener, Hit.ImpactPoint, FColor::Red, false, 0.05f, 0, 0.5f);
-#endif
-        }
-#if WITH_EDITOR
-        else
-        {
-            DrawDebugLine(GetWorld(), Listener, End, FColor::Green, false, 0.05f, 0, 0.5f);
-        }
-#endif
-    }
+//     for (int32 i = 0; i < NumRays; ++i)
+//     {
+//         // Uniformly jitter direction in a cone around the direct path (quick & dirty)
+//         const FVector Dir     = (SourceLoc - Listener).GetSafeNormal();
+//         const FVector Jitter  = FMath::VRandCone(Dir, FMath::DegreesToRadians(15.f));
+//         const FVector End     = Listener + Jitter * 5000.f;
+//
+//         FHitResult Hit;
+//         if (GetWorld()->LineTraceSingleByChannel(
+//                 Hit, Listener, End, ECC_Visibility, QParams))
+//         {
+//             ++BlockedRays;
+//             if (Hit.bBlockingHit) Hits.Add(Hit);
+//
+// #if WITH_EDITOR
+//             DrawDebugLine(GetWorld(), Listener, Hit.ImpactPoint, FColor::Red, false, 0.05f, 0, 0.5f);
+// #endif
+//         }
+// #if WITH_EDITOR
+//         else
+//         {
+//             DrawDebugLine(GetWorld(), Listener, End, FColor::Green, false, 0.05f, 0, 0.5f);
+//         }
+// #endif
+//     }
 }
 
 void UAudioRayTracingSubsystem::UpdateSources(float DeltaTime, bool bForceUpdate)
 {
-    for (FActiveSource& Src : ActiveSources)
+    if (TickVisualization)
     {
-        TArray<FSoundPath> ForwardPaths;
-        TArray<FSoundPath> BackwardPaths;
-        TArray<FSoundPath> ConnectedPaths;
-        GenerateFullPaths(Src, ForwardPaths, BackwardPaths, ConnectedPaths);
+        if (VisualizeTimer <= 0.0f)
+        {
+            for (FActiveSource& Src : ActiveSources)
+            {
+                TArray<FSoundPath> ForwardPaths;
+                TArray<FSoundPath> BackwardPaths;
+                TArray<FSoundPath> ConnectedPaths;
+                GenerateFullPaths(Src, ForwardPaths, BackwardPaths, ConnectedPaths);
+    
+                for (FSoundPath& Path : ForwardPaths)
+                {
+                    EvaluatePath(Path);
+                }
+                for (FSoundPath& Path : BackwardPaths)
+                {
+                    EvaluatePath(Path);
+                }
+                for (FSoundPath& Path : ConnectedPaths)
+                {
+                    EvaluatePath(Path);
+                }
 
-        for (FSoundPath& Path : ForwardPaths)
+                Visualize(Src);
+                
+                // Reset timer
+                VisualizeTimer = VISUALIZE_DURATION;
+            }
+        } else
         {
-            EvaluatePath(Path);
+            // Decrement timer
+            VisualizeTimer -= DeltaTime;
         }
-        for (FSoundPath& Path : BackwardPaths)
+    }
+    if (bForceUpdate)
+    {
+        for (FActiveSource& Src : ActiveSources)
         {
-            EvaluatePath(Path);
-        }
-        for (FSoundPath& Path : ConnectedPaths)
-        {
-            EvaluatePath(Path);
-        }
-        // if (bForceUpdate)
-        // {
-        //     
-        //     VisualizeBDPT(ForwardPaths, BackwardPaths, ConnectedPaths, VISUALIZE_DURATION);
-        // // FIXME Timing only intended for 1 source
-        // } else if (VisualizeTimer <= 0.0f)
-        // {
-        //     TArray<FSoundPath> ForwardPaths;
-        //     TArray<FSoundPath> BackwardPaths;
-        //     TArray<FSoundPath> ConnectedPaths;
-        //     GenerateFullPaths(Src, ForwardPaths, BackwardPaths, ConnectedPaths);
-        //
-        //     for (FSoundPath& Path : ForwardPaths)
-        //     {
-        //         EvaluatePath(Path);
-        //     }
-        //     for (FSoundPath& Path : BackwardPaths)
-        //     {
-        //         EvaluatePath(Path);
-        //     }
-        //     for (FSoundPath& Path : ConnectedPaths)
-        //     {
-        //         EvaluatePath(Path);
-        //     }
-        //     // VisualizeBDPT(ForwardPaths, BackwardPaths, ConnectedPaths, VISUALIZE_DURATION);
-        //
-        //     // Reset timer
-        //     VisualizeTimer = VISUALIZE_DURATION;
-        // } else
-        // {
-        //     // Decrement timer
-        //     VisualizeTimer -= DeltaTime;
-        // }
+            // Visualize a few rays
+            Visualize(Src);
+
+            // Cast a lot more to update impulse response
+            TArray<FSoundPath> ForwardPaths;
+            TArray<FSoundPath> BackwardPaths;
+            TArray<FSoundPath> ConnectedPaths;
+
+            GenerateFullPaths(Src, ForwardPaths, BackwardPaths, ConnectedPaths);
         
+            for (FSoundPath& Path : ForwardPaths)
+            {
+                EvaluatePath(Path);
+            }
+            
+            for (FSoundPath& Path : BackwardPaths)
+            {
+                EvaluatePath(Path);
+            }
+            
+            for (FSoundPath& Path : ConnectedPaths)
+            {
+                EvaluatePath(Path);
+            }
+
+            // TODO Implement energy buffers in FrequenSee Audio Component
+            // TODO Place energy of connected paths into bins in Src's energy buffer  
+            // TODO Normalize energy values based on total num rays
+        }
     }
 }
 
+
 /** -------------------------- BIDIRECTIONAL PATH TRACING --------------------------- */
-void UAudioRayTracingSubsystem::GenerateFullPaths(const FActiveSource& Src, TArray<FSoundPath>& ForwardPathsOut, TArray<FSoundPath>& BackwardPathsOut, TArray<FSoundPath>& ConnectedPathsOut)
+void UAudioRayTracingSubsystem::GenerateFullPaths(const FActiveSource& Src, TArray<FSoundPath>& ForwardPathsOut, TArray<FSoundPath>& BackwardPathsOut, TArray<FSoundPath>& ConnectedPathsOut, int NumRays)
 {
 
     APawn* Listener = PlayerPawn.Get();
@@ -209,33 +225,12 @@ void UAudioRayTracingSubsystem::GenerateFullPaths(const FActiveSource& Src, TArr
         UE_LOG(LogTemp, Warning, TEXT("Player not found in GenerateFullPaths"));
         return;
     }
-    constexpr int iterations = 1;
-    
-    // if (!Player)
-    // {
-    //     // Find the first DefaultPawn in the world
-    //     if (UWorld* World = GetWorld())
-    //     {
-    //         UE_LOG(LogTemp, Warning, TEXT("World found: %s"), *World->GetName());
-    //         for (TActorIterator<APawn> It(World); It; ++It)
-    //         {
-    //             UE_LOG(LogTemp, Log, TEXT("Actor found: %s"), *It->GetName());
-    //             Player = Cast<ADefaultPawn>(*It);
-    //             Player = Cast<ADefaultPawn>(UGameplayStatics::GetPlayerPawn(World, 0));
-    //             if (Player)
-    //             {
-    //                 UE_LOG(LogTemp, Log, TEXT("Player pawn found: %s"), *Player->GetName());
-    //                 break;
-    //             }
-    //         }
-    //     }
-    // };
 
     AActor* PlayerPtr = PlayerPawn.Get();
-    ForwardPathsOut.Reserve(iterations);
-    BackwardPathsOut.Reserve(iterations);
-    ConnectedPathsOut.Reserve(iterations); 
-    for (int i = 0; i < iterations; ++i)
+    ForwardPathsOut.Reserve(NumRays);
+    BackwardPathsOut.Reserve(NumRays);
+    ConnectedPathsOut.Reserve(NumRays); 
+    for (int i = 0; i < NumRays; ++i)
     {
         // Create and add forward path
         FSoundPath ForwardPath;
@@ -252,8 +247,7 @@ void UAudioRayTracingSubsystem::GenerateFullPaths(const FActiveSource& Src, TArr
             ConnectedPathsOut.Add(ConnectedPath);
     }
     // Print the number of connected paths
-    UE_LOG(LogTemp, Warning, TEXT("%d paths connected out of %d"), ConnectedPathsOut.Num(), iterations);
-    // UE_LOG(LogTemp, Warning, TEXT("Generated full paths!"));
+    UE_LOG(LogTemp, Warning, TEXT("%d paths connected out of %d"), ConnectedPathsOut.Num(), USED_RAY_COUNT);
 }
 
 bool UAudioRayTracingSubsystem::ConnectSubpaths(FSoundPath& ForwardPath, FSoundPath& BackwardPath, FSoundPath& OutPath)
@@ -753,5 +747,34 @@ void UAudioRayTracingSubsystem::VisualizeBDPT(const TArray<FSoundPath>& ForwardP
         }),
         DrawPathsDuration + ShowConnectionDuration + ShowContributionDuration, false
     );
+}
+
+// Visualizes the given number of forward/backward ray pairs
+void UAudioRayTracingSubsystem::Visualize(FActiveSource& Src, int RayCount, float Duration)
+{
+    TArray<FSoundPath> ForwardPaths;
+    TArray<FSoundPath> BackwardPaths;
+    TArray<FSoundPath> ConnectedPaths;
+    GenerateFullPaths(Src, ForwardPaths, BackwardPaths, ConnectedPaths, RayCount);
+    
+    for (FSoundPath& Path : ForwardPaths)
+    {
+        EvaluatePath(Path);
+    }
+    for (FSoundPath& Path : BackwardPaths)
+    {
+        EvaluatePath(Path);
+    }
+    for (FSoundPath& Path : ConnectedPaths)
+    {
+        EvaluatePath(Path);
+    }
+    VisualizeBDPT(ForwardPaths, BackwardPaths, ConnectedPaths, Duration);
+}
+
+// Calls UpdateSources with bForceUpdate = true
+void UAudioRayTracingSubsystem::ForceUpdateSources()
+{
+    UpdateSources(0.0f, true);
 }
 

@@ -112,9 +112,8 @@ private:
 	UPROPERTY()  TArray<TWeakObjectPtr<UAcousticGeometryComponent>> Geometry;
 
 	/** How many rays to cast per source every frame (editor‑tweakable) */
-	UPROPERTY(EditAnywhere, Category = "Audio|RayTracing")
-	int32 NumRays = 32;
-
+	// UPROPERTY(EditAnywhere, Category = "Audio|RayTracing")
+	// int32 NumRays;
 	/** Fallback material if a piece of geometry has no explicit material */
 	UPROPERTY(EditAnywhere, Category = "Audio|RayTracing")
 	TObjectPtr<UAcousticMaterial> DefaultMaterial = nullptr;
@@ -123,7 +122,7 @@ private:
 	/** --- BIDIRECTIONAL PATH TRACING METHODS --- */
 	void GeneratePath(const AActor* ActorToIgnore, FSoundPath& OutPath) const;
 	bool ConnectSubpaths(FSoundPath& ForwardPath, FSoundPath& BackwardPath, FSoundPath& OutPath);
-	void GenerateFullPaths(const FActiveSource& Src, TArray<FSoundPath>& ForwardPathsOut, TArray<FSoundPath>& BackwardPathsOut, TArray<FSoundPath>& ConnectedPathsOut); 
+	void GenerateFullPaths(const FActiveSource& Src, TArray<FSoundPath>& ForwardPathsOut, TArray<FSoundPath>& BackwardPathsOut, TArray<FSoundPath>& ConnectedPathsOut, int NumRays = USED_RAY_COUNT); 
 	FPathEnergyResult EvaluatePath(FSoundPath& Path) const;
 	TArray<float> GetEnergyBuffer(FActiveSource& Src) const;
 	void UpdateSources(float DeltaTime, bool bForceUpdate = false);
@@ -145,9 +144,12 @@ private:
 	                        float DrawDelay, bool bPersistent = true);
 	float DrawSegmentedLineAdvanced(const FVector& Start, const FVector& End, float Speed, FColor Color,
 							float DrawDelay, bool bPersistent = true);
-	const int DEBUG_RAY_FPS = 1; 
-	const float VISUALIZE_DURATION = 10.0f;
+	const int DEBUG_RAY_FPS = 60; 
+	static constexpr float VISUALIZE_DURATION = 10.0f;
 	float VisualizeTimer = 0.0f;
+	static constexpr int DEBUG_RAY_COUNT = 10;
+	static constexpr int USED_RAY_COUNT = 1000;
+	const bool TickVisualization = true;
 public:
 	/**
 	 * Given forward, backward, and connected paths, shows the complete process of:
@@ -157,5 +159,12 @@ public:
 	 * Apportions some of the total duration to each step. 
 	 */
 	void VisualizeBDPT(const TArray<FSoundPath>& ForwardPaths, const TArray<FSoundPath>& BackwardPaths, const TArray<FSoundPath>& ConnectedPaths, float TotalDuration) ; 
- 
+
+	// Visualizes the given number of forward/backward ray pairs
+	void Visualize(FActiveSource& Src, int RayCount = DEBUG_RAY_COUNT, float Duration = VISUALIZE_DURATION);
+
+	// Calls UpdateSources with bForceUpdate = true
+	void ForceUpdateSources();
+
+	
 };
