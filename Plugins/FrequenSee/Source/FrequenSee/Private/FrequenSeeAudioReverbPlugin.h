@@ -1,10 +1,13 @@
 #pragma once
+#include "DSP/AlignedBlockBuffer.h"
 #include "FrequenSeeAudioComponent.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "ConvolutionReverb.h"
 #include "FrequenSeeAudioReverbSettings.h"
 // #include "FFTConvolver/FFTConvolver.h"
 #include "FrequenSeeFFTConvolver/FFTConvolver.h"
+#include "FrequenSeeFFTConvolver/FFTConvolver2.h"
+#include "FrequenSeeFFTConvolver/FFTConvolver3.h"
 #include "FrequenSeeAudioReverbPlugin.generated.h"
 
 struct FFrequenSeeAudioReverbSource
@@ -53,10 +56,17 @@ private:
 	int CurrentFrame = 0;
 	// each process audio call
 	int CurrentSample = 0;
+	// audio buffer num
+	int AudioBufferNum = 0;
 	
 	TArray<float> InLeft, InRight, OutLeft, OutRight;
 
-	// fftconvolver::FFTConvolver Convolver;	
+	// fftconvolver::FFTConvolver Convolver;
+	FFTConvolverStereo2 Convolver2;
+	FFTConvolver3 Convolver3;
+	TArray<float> InputDelayL, InputDelayR;
+	TUniquePtr<Audio::FConvolutionReverb> rv;
+	Audio::FConvolutionReverbInitData InInitData;
 	
 	TArray<FFrequenSeeAudioReverbSource> Sources;
 	

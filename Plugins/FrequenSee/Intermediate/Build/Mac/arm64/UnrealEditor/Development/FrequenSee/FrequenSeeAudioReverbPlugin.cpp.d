@@ -3940,8 +3940,10 @@
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Private/FrequenSeeAudioReverbPlugin.cpp \
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Intermediate/Build/Mac/arm64/UnrealEditor/Development/FrequenSee/Definitions.FrequenSee.h \
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Private/FrequenSeeAudioReverbPlugin.h \
-  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Public/FrequenSeeAudioComponent.h \
+  Runtime/SignalProcessing/Public/DSP/AlignedBlockBuffer.h \
   Runtime/Core/Public/CoreMinimal.h \
+  Runtime/SignalProcessing/Public/DSP/BufferVectorOperations.h \
+  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Public/FrequenSeeAudioComponent.h \
   Runtime/Engine/Classes/Components/AudioComponent.h \
   Runtime/Engine/Public/Audio.h \
   Runtime/Engine/Public/Audio/SoundParameterControllerInterface.h \
@@ -3984,7 +3986,6 @@
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Intermediate/Build/Mac/UnrealEditor/Inc/FrequenSee/UHT/FrequenSeeAudioComponent.generated.h \
   Runtime/Engine/Classes/Sound/SoundEffectSubmix.h \
   Runtime/AudioMixerCore/Public/AudioDefines.h \
-  Runtime/SignalProcessing/Public/DSP/BufferVectorOperations.h \
   Runtime/AudioExtensions/Public/IAudioExtensionPlugin.h \
   Runtime/Engine/Classes/Sound/SoundEffectPreset.h \
   Runtime/Engine/Classes/Sound/SoundEffectBase.h \
@@ -3999,6 +4000,8 @@
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Private/FrequenSeeFFTConvolver/FFTConvolver.h \
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Private/FrequenSeeFFTConvolver/KissFFT/kiss_fftr.h \
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Private/FrequenSeeFFTConvolver/KissFFT/kiss_fft.h \
+  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Private/FrequenSeeFFTConvolver/FFTConvolver2.h \
+  /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Source/FrequenSee/Private/FrequenSeeFFTConvolver/FFTConvolver3.h \
   /Users/emrearslan/Desktop/hw/cs2240/audio-pathtracer/Plugins/FrequenSee/Intermediate/Build/Mac/UnrealEditor/Inc/FrequenSee/UHT/FrequenSeeAudioReverbPlugin.generated.h \
   Runtime/Engine/Classes/Sound/SoundSubmix.h \
   Runtime/Engine/Public/AudioDeviceHandle.h \

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/AudioComponent.h"
 #include "GameFramework/DefaultPawn.h"
+#include "Audio.h"
 #include "FrequenSeeAudioComponent.generated.h"
 
 class UFrequenSeeAudioReverbSettings;
@@ -53,6 +54,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FrequenSeeAudioComponent")
 	float AbsorbtionFactorAir = 0.0005f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FrequenSeeAudioComponent")
+	bool bGenerateReverb = false;
+
 	UPROPERTY(VisibleAnywhere)
 	ADefaultPawn* Player;
 
@@ -79,6 +83,7 @@ public:
 
 	float GetOcclusionAttenuation() const { return OcclusionAttenuation; }
 	TArray<TArray<float>>& GetImpulseResponse() { return ImpulseBuffer; }
+	TArray<float>& GetAudioBuffer() { return AudioBuffer; }
 
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -86,6 +91,10 @@ public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	int FrameCount = 0;
+	int AudioBufferNum = 0;
+
+	UFUNCTION(BlueprintCallable)
+	void RunScript(const FString& FilePath);
 
 private:
 	float Timer = 0.0f;
@@ -103,6 +112,7 @@ private:
 	TArray<TArray<float>> EnergyBuffer;
 	// for impulse responses per channel
 	TArray<TArray<float>> ImpulseBuffer;
+	TArray<float> AudioBuffer;
 
 	void ClearEnergyBuffer();
 	void Accumulate(float TimeSeconds, float Value, int32 Channel);
@@ -110,5 +120,6 @@ private:
 	void NormalizeImpulseResponse(TArray<float>& IR);
 	void GenerateDummyImpulseResponse(TArray<float>& IR);
 	// load from text file
-	TArray<float> LoadDummyImpulseResponse(const FString& FilePath);
+	void LoadFloatArray(const FString& FilePath, TArray<float> &Data);
+	void SaveArrayToFile(const TArray<float>& Array, const FString& FilePath);
 };

@@ -44,17 +44,21 @@ UFrequenSeeAudioComponent::UFrequenSeeAudioComponent()
 	// under content
 	FString ContentDir = FPaths::ProjectContentDir();
 	FString ImpulsePath = ContentDir + TEXT("extracted_audio.txt");
-	TArray<float> LoadedIR = LoadDummyImpulseResponse(ImpulsePath);
-	FMemory::Memcpy(
-		ImpulseBuffer[0].GetData(),
-		LoadedIR.GetData(),
-		LoadedIR.Num() * sizeof(float)
-	);
-	FMemory::Memcpy(
-		ImpulseBuffer[1].GetData(),
-		LoadedIR.GetData(),
-		LoadedIR.Num() * sizeof(float)
-	);
+	LoadFloatArray(ImpulsePath, ImpulseBuffer[0]);
+	ImpulseBuffer[1] = ImpulseBuffer[0];
+	LoadFloatArray(FPaths::ProjectSavedDir() + TEXT("input_audio.txt"), AudioBuffer);
+	AudioBufferNum++;
+
+	// float MaxVal = 0.0f;
+	// for (int32 i = 0; i < LoadedIR.Num(); ++i)
+	// {
+	// 	MaxVal = FMath::Max(MaxVal, FMath::Abs(LoadedIR[i]));
+	// }
+	// for (int32 i = 0; i < LoadedIR.Num(); ++i)
+	// {
+	// 	LoadedIR[i] /= MaxVal;
+	// };
+
 }
 
 UFrequenSeeAudioComponent::~UFrequenSeeAudioComponent()
@@ -98,8 +102,11 @@ void UFrequenSeeAudioComponent::TickComponent(float DeltaTime, ELevelTick TickTy
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+	USoundWave* SoundWave = Cast<USoundWave>(Sound);
+	SoundWave->RawData
+
 	FrameCount++;
-	UE_LOG(LogTemp, Warning, TEXT("FRAME DELTA: %f"), DeltaTime);
+	// UE_LOG(LogTemp, Warning, TEXT("FRAME DELTA: %f"), DeltaTime);
 
 	// UE_LOG(LogTemp, Warning, TEXT("Ticking FROMCOMP"));
 	// Cast rays at only certain intervals
@@ -392,6 +399,12 @@ void UFrequenSeeAudioComponent::UpdateSound()
 	// SetVolumeMultiplier(FMath::Clamp(TotalEnergy, 0.0f, 1.0f));
 
 	// ReconstructImpulseResponse();
+	if (bGenerateReverb)
+	{
+		SaveArrayToFile(ImpulseBuffer[0], TEXT("saved_ir.txt"));
+		RunScript(TEXT("Scripts/test.sh"));
+		bGenerateReverb = false;
+	}
 }
 
 void UFrequenSeeAudioComponent::ClearEnergyBuffer()
@@ -578,7 +591,7 @@ void UFrequenSeeAudioComponent::GenerateDummyImpulseResponse(TArray<float>& IR)
 	}
 }
 
-TArray<float> UFrequenSeeAudioComponent::LoadDummyImpulseResponse(const FString& FilePath)
+void UFrequenSeeAudioComponent::LoadFloatArray(const FString& FilePath, TArray<float> &Data)
 {
 	// impulse response in a text file with one float per line
 	TArray<float> ImpulseResponse;
@@ -608,8 +621,65 @@ TArray<float> UFrequenSeeAudioComponent::LoadDummyImpulseResponse(const FString&
 		UE_LOG(LogTemp, Warning, TEXT("Loaded impulse response file: %s with %d samples"), *FilePath, ImpulseResponse.Num());
 	}
 
-	return ImpulseResponse;
+	if (ImpulseResponse.Num() != Data.Num())
+	{
+		Data.SetNumUninitialized(ImpulseResponse.Num());
+	}
+
+	FMemory::Memcpy(Data.GetData(), ImpulseResponse.GetData(), sizeof(float) * ImpulseResponse.Num());
 }
+
+void UFrequenSeeAudioComponent::SaveArrayToFile(const TArray<float>& Array, const FString& FilePath)
+{
+	FString Directory = FPaths::ProjectSavedDir(); // You can change this path
+	FString FullPath = Directory / FilePath;
+
+	TArray<FString> Lines;
+	for (float Value : Array)
+	{
+		Lines.Add(FString::SanitizeFloat(Value));
+	}
+
+	FString FileContent = FString::Join(Lines, TEXT("\n"));
+
+	FFileHelper::SaveStringToFile(FileContent, *FullPath);
+}
+
+void UFrequenSeeAudioComponent::RunScript(const FString& FilePath)
+{
+	FString ScriptPath = FPaths::ProjectDir() / FilePath;
+	FString Params = "";
+
+	void* ReadPipe;
+	void* WritePipe = nullptr;
+	// FPlatformProcess::CreatePipe(ReadPipe, WritePipe);
 	
+	FProcHandle ProcHandle = FPlatformProcess::CreateProc(
+		*ScriptPath,
+		*Params,
+		true,   // bLaunchDetached
+		false,  // bLaunchHidden
+		false,  // bLaunchReallyHidden
+		nullptr,
+		2,
+		nullptr,
+		WritePipe
+	);
+
+	if (ProcHandle.IsValid())
+	{
+		// callback for when done
+		FPlatformProcess::WaitForProc(ProcHandle);
+		FPlatformProcess::CloseProc(ProcHandle);
+		// FPlatformProcess::ClosePipe(ReadPipe, WritePipe);
+		LoadFloatArray(FPaths::ProjectSavedDir() / TEXT("output_audio.txt"), AudioBuffer);
+		AudioBufferNum++;
+		UE_LOG(LogTemp, Warning, TEXT("AudioBufferNum = %d"), AudioBufferNum);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to launch script."));
+	}
+}
 
 
