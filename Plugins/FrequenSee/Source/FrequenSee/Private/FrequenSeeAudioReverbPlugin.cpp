@@ -87,7 +87,7 @@ void FFrequenSeeAudioReverbPlugin::Initialize(const FAudioPluginInitializationPa
 	ConvOutputLeft.SetNumZeroed(CurrTailSize);
 	ConvOutputRight.SetNumZeroed(CurrTailSize);
 
-	const int32 FFTSize = FMath::RoundUpToPowerOfTwo(CurrTailSize); // Next power of 2 ≥ 97022
+	FFTSize = FMath::RoundUpToPowerOfTwo(CurrTailSize); // Next power of 2 ≥ 97022
 	const int32 NumFreqBins = FFTSize / 2 + 1;
 	ForwardCfg = kiss_fftr_alloc(FFTSize, 0, nullptr, nullptr);
 	InverseCfg = kiss_fftr_alloc(FFTSize, 1, nullptr, nullptr);
@@ -95,6 +95,8 @@ void FFrequenSeeAudioReverbPlugin::Initialize(const FAudioPluginInitializationPa
 	InputFreq.SetNumZeroed(NumFreqBins);
 	IRFreq.SetNumZeroed(NumFreqBins);
 	TimeDomainOutput.SetNumZeroed(FFTSize);
+	IRPadded.SetNumZeroed(FFTSize);
+	InputPadded.SetNumZeroed(FFTSize);
 
 	UE_LOG(LogTemp, Warning, TEXT("Initializing reverb plugin"));
 }
@@ -178,16 +180,15 @@ void FFrequenSeeAudioReverbPlugin::ConvolveFFT(const TArray<float>& IR, const TA
     // const int32 ConvSize = InputSize + IRSize - 1; // 97022
 	const int32 ConvSize = Output.Num(); // 97022
 
-    const int32 FFTSize = FMath::RoundUpToPowerOfTwo(ConvSize); // Next power of 2 ≥ 97022
+    // const int32 FFTSize = FMath::RoundUpToPowerOfTwo(ConvSize); // Next power of 2 ≥ 97022
     const int32 NumFreqBins = FFTSize / 2 + 1;
 
     // Prepare zero-padded input and IR
-    TArray<float> InputPadded;
-    InputPadded.SetNumZeroed(FFTSize);
+    // TArray<float> InputPadded;
+    // InputPadded.SetNumZeroed(FFTSize);
     FMemory::Memcpy(InputPadded.GetData(), Input.GetData(), sizeof(float) * InputSize);
-
-    TArray<float> IRPadded;
-    IRPadded.SetNumZeroed(FFTSize);
+	
+    // IRPadded.SetNumZeroed(FFTSize);
     FMemory::Memcpy(IRPadded.GetData(), IR.GetData(), sizeof(float) * IRSize);
 
     // Allocate KissFFT configs

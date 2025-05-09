@@ -72,6 +72,9 @@ private:
 	TArray<kiss_fft_cpx> InputFreq;
 	TArray<kiss_fft_cpx> IRFreq;
 	TArray<float> TimeDomainOutput;
+	TArray<float> IRPadded;
+	TArray<float> InputPadded;
+	int32 FFTSize;
 	
 	TArray<FFrequenSeeAudioReverbSource> Sources;
 	
