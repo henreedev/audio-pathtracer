@@ -2,6 +2,7 @@
 #include "Sound/SoundSubmix.h"
 #include "FrequenSeeAudioModule.h"
 #include "ConvolutionReverb.h"
+#include "FrequenSeeFFTConvolver/KissFFT/kiss_fftr.h"
 #include "HAL/UnrealMemory.h"
 #include "Components/AudioComponent.h"
 #include "SubmixEffects/SubmixEffectConvolutionReverb.h"
@@ -26,7 +27,8 @@ void FFrequenSeeAudioReverbSource::ClearBuffers()
 }
 
 FFrequenSeeAudioReverbPlugin::FFrequenSeeAudioReverbPlugin()
-	: ReverbSubmix(nullptr),
+	: SimulatedDuration(1.0f),
+	ReverbSubmix(nullptr),
 	ReverbSubmixEffect(nullptr)
 {
 }
@@ -73,14 +75,16 @@ void FFrequenSeeAudioReverbPlugin::Initialize(const FAudioPluginInitializationPa
 	SamplingRate = InitializationParams.SampleRate;
 	FrameSize = InitializationParams.BufferLength;
 	Sources.AddDefaulted(InitializationParams.NumSources);
-
-	InLeft.SetNumUninitialized(FrameSize);
-	InRight.SetNumUninitialized(FrameSize);
-	OutLeft.SetNumUninitialized(FrameSize);
-	OutRight.SetNumUninitialized(FrameSize);
-
-	InputDelayL.Init(0.f, 1024);
-	InputDelayR.Init(0.f, 1024);
+	int IRSize = SamplingRate * SimulatedDuration;
+	AudioTailBufferLeft.SetSize(IRSize - 1);
+	AudioTailBufferRight.SetSize(IRSize - 1);
+	int CurrTailSize = IRSize - 1 + FrameSize;
+	CurrAudioTailLeft.SetNumZeroed(CurrTailSize);
+	CurrAudioTailRight.SetNumZeroed(CurrTailSize);
+	// ConvOutputLeft.SetNumZeroed(CurrTailSize + IRSize - 1);
+	// ConvOutputRight.SetNumZeroed(CurrTailSize + IRSize - 1);
+	ConvOutputLeft.SetNumZeroed(CurrTailSize);
+	ConvOutputRight.SetNumZeroed(CurrTailSize);
 
 	UE_LOG(LogTemp, Warning, TEXT("Initializing reverb plugin"));
 }
@@ -102,348 +106,164 @@ void FFrequenSeeAudioReverbPlugin::OnReleaseSource(const uint32 SourceId)
 void FFrequenSeeAudioReverbPlugin::ProcessSourceAudio(const FAudioPluginSourceInputData& InputData,
 	FAudioPluginSourceOutputData& OutputData)
 {
-	// UE_LOG(LogTemp, Warning, TEXT("REVERB PLUGIN PROCESSING"));
-	
 	const UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(InputData.AudioComponentId);
 	UFrequenSeeAudioComponent* FrequenSeeSourceComponent = AudioComponent->GetOwner()->FindComponentByClass<UFrequenSeeAudioComponent>();
-	TArray<float> &AudioBuffer = FrequenSeeSourceComponent->GetAudioBuffer();
-	const int CurrBuffer =  FrequenSeeSourceComponent->AudioBufferNum;
-	const int FrameSize = InputData.AudioBuffer->Num();
-
-	// curr buffer
-	UE_LOG(LogTemp, Warning, TEXT("CurrBuffer: %d"), CurrBuffer);
-	
-	if (CurrBuffer == 0)
+	if (!FrequenSeeSourceComponent)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("FrequenSeeAudioComponent not found"));
 		return;
 	}
-	if (CurrBuffer != CurrentFrame)
+	bool bApplyReverb = FrequenSeeSourceComponent->bApplyReverb;
+	if (!bApplyReverb)
 	{
-		CurrentFrame = CurrBuffer;
-		// CurrentSample = 0;
+		FMemory::Memcpy(OutputData.AudioBuffer.GetData(), InputData.AudioBuffer->GetData(), sizeof(float) * FrameSize * 2);
+		return;
 	}
-	else if (CurrentSample * FrameSize >= AudioBuffer.Num())
-	{
-		CurrentSample = 0;
-	}
-	else
-	{
-		CurrentSample++;
-	}
+	
+	// get the impulse response
+	TArray<TArray<float>> &ImpulseResponse = FrequenSeeSourceComponent->GetImpulseResponse();
+	
+	const int TailSize = AudioTailBufferLeft.GetSize();
 
-	// current range of data
-	UE_LOG(LogTemp, Warning, TEXT("CurrentSample: %d to %d"), CurrentSample * FrameSize, (CurrentSample + 1) * FrameSize);
+	// get the 47999 prev audio samples
+	AudioTailBufferLeft.GetLastSamples(CurrAudioTailLeft, TailSize);
+	AudioTailBufferRight.GetLastSamples(CurrAudioTailRight, TailSize);
+	// update the audio tail buffer with current audio samples
+	AudioTailBufferLeft.AddSamples(InputData.AudioBuffer->GetData(), FrameSize, 0, 2);
+	AudioTailBufferRight.AddSamples(InputData.AudioBuffer->GetData(), FrameSize, 1, 2);
+	// add the current audio samples to the current audio tail
+	FMemory::Memcpy(CurrAudioTailLeft.GetData() + TailSize, InputData.AudioBuffer->GetData(), sizeof(float) * FrameSize);
+	FMemory::Memcpy(CurrAudioTailRight.GetData() + TailSize, InputData.AudioBuffer->GetData(), sizeof(float) * FrameSize);
+
+	// LEFT
+	ConvolveFFT(ImpulseResponse[0], CurrAudioTailLeft, ConvOutputLeft);
+	
+	// RIGHT
+	ConvolveFFT(ImpulseResponse[1], CurrAudioTailRight, ConvOutputRight);
+
+	// interleave into output
+	int CurrSampleStartIndex = TailSize;
+	float* OutBufferData = OutputData.AudioBuffer.GetData();
+	const float* InBufferData = InputData.AudioBuffer->GetData();
+	const float* LeftBufferData = ConvOutputLeft.GetData();
+	const float* RightBufferData = ConvOutputRight.GetData();
+	const float MixAlpha = 0.8f;
+	for (int SampleIndex = 0; SampleIndex < FrameSize; ++SampleIndex)
+	{
+		OutBufferData[SampleIndex * 2] = FMath::Clamp(LeftBufferData[CurrSampleStartIndex + SampleIndex], -1.0f, 1.0f) * MixAlpha +
+			InBufferData[SampleIndex * 2] * (1.0f - MixAlpha);
+		OutBufferData[SampleIndex * 2 + 1] = FMath::Clamp(RightBufferData[CurrSampleStartIndex + SampleIndex], -1.0f, 1.0f) * MixAlpha +
+			InBufferData[SampleIndex * 2 + 1] * (1.0f - MixAlpha);
+		// OutBufferData[SampleIndex * 2 + 1] = FMath::Clamp(LeftBufferData[CurrSampleStartIndex + SampleIndex], -1.0f, 1.0f);
+	}
 
 	// copy input to output
-	const float* InBufferData = AudioBuffer.GetData() + CurrentSample * FrameSize;
-	// const float* InBufferData = InputData.AudioBuffer->GetData();
-	float* OutBufferData = OutputData.AudioBuffer.GetData();
-
-	FMemory::Memcpy(OutBufferData, InBufferData, FrameSize * sizeof(float));
+	// FMemory::Memcpy(OutBufferData, InputData.AudioBuffer->GetData(), sizeof(float) * FrameSize * 2);
 }
 
-// void FFrequenSeeAudioReverbPlugin::ProcessSourceAudio(const FAudioPluginSourceInputData& InputData,
-// 	FAudioPluginSourceOutputData& OutputData)
-// {
-// 	// UE_LOG(LogTemp, Warning, TEXT("REVERB PLUGIN PROCESSING"));
-// 	
-// 	const UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(InputData.AudioComponentId);
-// 	UFrequenSeeAudioComponent* FrequenSeeSourceComponent = AudioComponent->GetOwner()->FindComponentByClass<UFrequenSeeAudioComponent>();
-// 	const int RenderFrame =  FrequenSeeSourceComponent->FrameCount;
-// 	if (RenderFrame != CurrentFrame)
-// 	{
-// 		CurrentFrame = RenderFrame;
-// 		CurrentSample = 0;
-// 	}
-// 	CurrentSample++;
-//
-// 	TArray<TArray<float>>& ImpulseBuffer = FrequenSeeSourceComponent->GetImpulseResponse();
-// 	// ConvolveStereo(InputData,
-// 	// 	ImpulseBuffer[0],
-// 	// 	ImpulseBuffer[1],
-// 	// 	OutputData);
-// 	// ConvolveFFTStereo(InputData, ImpulseBuffer[0], OutputData);
-//
-// 	// copy input to output
-// 	const float* InBufferData = InputData.AudioBuffer->GetData();
-// 	float* OutBufferData = OutputData.AudioBuffer.GetData();
-// 	const int32 FrameSize = InputData.AudioBuffer->Num();
-// 	for (int32 SampleIndex = 0; SampleIndex < FrameSize; ++SampleIndex)
-// 	{
-// // 		OutBufferData[SampleIndex] = 0.0f;
-// // 		for (int32 Sample = 0; Sample < ImpulseBuffer[0].Num() / 12; ++Sample)
-// // 		{
-// // 			OutBufferData[SampleIndex] += InBufferData[SampleIndex] * ImpulseBuffer[0][Sample];
-// // 		}
-// // 		OutBufferData[SampleIndex] *= 0.1f;
-// 	}
-//
-// 	FMemory::Memcpy(OutBufferData, InBufferData, FrameSize * sizeof(float));
-// 	// ConvolveFFTStereo(InputData, ImpulseBuffer[0], OutputData);
-// }
-void NormalizeImpulseResponse(TArray<float>& IR);
-void FFrequenSeeAudioReverbPlugin::ConvolveStereo(const FAudioPluginSourceInputData& InputData,
-	const TArray<float>& IR_Left, const TArray<float>& IR_Right, FAudioPluginSourceOutputData& OutputData)
+void FFrequenSeeAudioReverbPlugin::ConvolveFFT(const TArray<float>& IR, const TArray<float>& Input, TArray<float>& Output)
 {
-	const float* DrySignal = InputData.AudioBuffer->GetData();
-	float* OutWetSignal = OutputData.AudioBuffer.GetData();
+	const int32 IRSize = IR.Num();               // 48000
+    const int32 InputSize = Input.Num();         // 49023
+    // const int32 ConvSize = InputSize + IRSize - 1; // 97022
+	const int32 ConvSize = Output.Num(); // 97022
 
-	const int32 FrameSize = InputData.AudioBuffer->Num(); // Interleaved stereo
-	const int32 ChannelFrameSize = FrameSize / 2;
+    const int32 FFTSize = FMath::RoundUpToPowerOfTwo(ConvSize); // Next power of 2 ≥ 97022
+    const int32 NumFreqBins = FFTSize / 2 + 1;
 
-	// Deinterleave dry signal into separate Left and Right arrays
-	
-	
-	// DryRight.SetNumZeroed(ChannelFrameSize);
+    // Prepare zero-padded input and IR
+    TArray<float> InputPadded;
+    InputPadded.SetNumZeroed(FFTSize);
+    FMemory::Memcpy(InputPadded.GetData(), Input.GetData(), sizeof(float) * InputSize);
 
-	for (int32 i = 0; i < ChannelFrameSize; ++i)
-	{
-		InLeft[i] = DrySignal[i * 2];
-		// DryRight[i] = DrySignal[i * 2 + 1];
-	}
-	
-	// Simple time-domain convolution: y[n] = sum_{k=0}^{N-1} x[n-k] * h[k]
-	auto Convolve = [&](const TArray<float>& Input, const TArray<float>& IR, TArray<float>& Output)
-	{
-		// 48k sample rate, 1 sec of IR
-		const int32 IrLength = IR.Num();
-		// in length = out length = 1024
-		const int32 InputLength = Input.Num();
-		const int32 OutputLength = Output.Num();
-		
-		// Perform full convolution
-		
-	};
+    TArray<float> IRPadded;
+    IRPadded.SetNumZeroed(FFTSize);
+    FMemory::Memcpy(IRPadded.GetData(), IR.GetData(), sizeof(float) * IRSize);
 
-	Convolve(InLeft, IR_Left, OutLeft);
-	// Convolve(DryRight, IR_Right, OutRight);
-	
-	// Interleave back to output buffer
-	for (int32 i = 0; i < ChannelFrameSize; ++i)
-	{
-		OutWetSignal[i * 2] = OutLeft[i];
-		// OutWetSignal[i * 2 + 1] = OutRight[i];
-		OutWetSignal[i * 2 + 1] = OutLeft[i];
-	}
+    // Allocate KissFFT configs
+    kiss_fftr_cfg ForwardCfg = kiss_fftr_alloc(FFTSize, 0, nullptr, nullptr);
+    kiss_fftr_cfg InverseCfg = kiss_fftr_alloc(FFTSize, 1, nullptr, nullptr);
+
+    // Allocate FFT buffers
+    TArray<kiss_fft_cpx> InputFreq;
+    InputFreq.SetNumZeroed(NumFreqBins);
+
+    TArray<kiss_fft_cpx> IRFreq;
+    IRFreq.SetNumZeroed(NumFreqBins);
+
+    TArray<kiss_fft_cpx> OutputFreq;
+    OutputFreq.SetNumZeroed(NumFreqBins);
+
+    TArray<float> TimeDomainOutput;
+    TimeDomainOutput.SetNumZeroed(FFTSize);
+
+    // Perform FFTs
+    kiss_fftr(ForwardCfg, InputPadded.GetData(), InputFreq.GetData());
+    kiss_fftr(ForwardCfg, IRPadded.GetData(), IRFreq.GetData());
+
+    // Multiply frequency components
+    for (int32 i = 0; i < NumFreqBins; ++i)
+    {
+        const kiss_fft_cpx& A = InputFreq[i];
+        const kiss_fft_cpx& B = IRFreq[i];
+
+        // (a + bi)(c + di) = (ac - bd) + (ad + bc)i
+        OutputFreq[i].r = A.r * B.r - A.i * B.i;
+        OutputFreq[i].i = A.r * B.i + A.i * B.r;
+    }
+
+    // IFFT
+    kiss_fftri(InverseCfg, OutputFreq.GetData(), TimeDomainOutput.GetData());
+
+    // Normalize (KissFFT does not normalize the IFFT)
+    const float Scale = 1.0f / FFTSize;
+    for (float& Sample : TimeDomainOutput)
+    {
+        Sample *= Scale;
+    }
+
+    // Resize and copy the valid convolution output
+    // Output.SetNumUninitialized(ConvSize);
+    FMemory::Memcpy(Output.GetData(), TimeDomainOutput.GetData(), sizeof(float) * ConvSize);
+
+    // Free FFT plans
+    kiss_fftr_free(ForwardCfg);
+    kiss_fftr_free(InverseCfg);
 }
 
-// void FFrequenSeeAudioReverbPlugin::ConvolveFFTStereo(const FAudioPluginSourceInputData& InputData,
-// 	const TArray<float>& IR, FAudioPluginSourceOutputData& OutputData)
+// void FFrequenSeeAudioReverbPlugin::ConvolveFFT(const TArray<float>& IR, const TArray<float>& Input, TArray<float>& Output)
 // {
-// 	const float* InterleavedInput = InputData.AudioBuffer->GetData();
-// 	float* InterleavedOutput = OutputData.AudioBuffer.GetData();
+// 	const int BlockSize = 1024;
+// 	const int BlockSizeMin = 100;
+// 	Convolver.init(BlockSize, IR.GetData(), IR.Num());
+// 	TArray<float> InBuf;
+// 	InBuf.SetNumZeroed(BlockSize);
 //
-// 	// TArray<float> InterleavedIR;
-// 	// InterleavedIR.SetNumUninitialized(IR.Num() * 2);
-// 	// for (int32 i = 0; i < IR.Num(); ++i)
-// 	// {
-// 	// 	InterleavedIR[i * 2] = IR[i];
-// 	// 	InterleavedIR[i * 2 + 1] = IR[i];
-// 	// }
+// 	const float *In = Input.GetData();
+// 	float *Out = Output.GetData();
 // 	
-// 	using namespace Audio;
-// 	InInitData.Samples = IR;
-// 	InInitData.ImpulseSampleRate = 48000;
-// 	InInitData.TargetSampleRate = 48000;
-// 	// InInitData.InputAudioFormat = {2};
-// 	// InInitData.OutputAudioFormat = {2};
-// 	InInitData.InputAudioFormat = {1};
-// 	InInitData.OutputAudioFormat = {1};
-// 	InInitData.AlgorithmSettings.NumImpulseResponses = 1;
-// 	InInitData.AlgorithmSettings.NumInputChannels = 1;
-// 	InInitData.AlgorithmSettings.NumOutputChannels = 1;
-// 	InInitData.AlgorithmSettings.MaxNumImpulseResponseSamples = 48000;
-// 	rv = FConvolutionReverb::CreateConvolutionReverb(InInitData);
-// 	check(rv);
-// 	
-// 	// Deinterleave dry signal into separate Left and Right arrays
-// 	TArray<float> DryLeft, DryRight;
-// 	DryLeft.SetNumUninitialized(FrameSize);
-// 	DryRight.SetNumUninitialized(FrameSize);
-//
-// 	for (int32 i = 0; i < FrameSize; ++i)
+// 	size_t ProcessedOut = 0;
+// 	size_t ProcessedIn = 0;
+// 	while (ProcessedOut < Output.Num())
 // 	{
-// 		DryLeft[i] = InterleavedInput[i * 2];
-// 		DryRight[i] = InterleavedInput[i * 2 + 1];
-// 	}
+// 		const size_t CurrBlockSize = BlockSizeMin + (static_cast<size_t>(rand()) % (1+(BlockSize-BlockSizeMin))); 
+//       
+// 		const size_t RemainingOut = Output.Num() - ProcessedOut;
+// 		const size_t RemainingIn = Input.Num() - ProcessedIn;
+//       
+// 		const size_t ProcessingOut = std::min(RemainingOut, CurrBlockSize);
+// 		const size_t ProcessingIn = std::min(RemainingIn, CurrBlockSize);
 //
-// 	rv->ProcessAudio(1, DryLeft.GetData(),
-// 		1, OutLeft.GetData(), FrameSize);
-// 	for (int32 i = 0; i < FrameSize; ++i)
-// 	{
-// 		InterleavedOutput[i * 2] = OutLeft[i];
-// 		InterleavedOutput[i * 2 + 1] = OutLeft[i];
-// 	}
-// 	
-// 	for (int32 i = 0; i < OutputData.AudioBuffer.Num(); ++i)
-// 	{
-// 		InterleavedOutput[i] = FMath::Clamp(InterleavedOutput[i], -1.0f, 1.0f);
-// 	}
-// }
-
-// void FFrequenSeeAudioReverbPlugin::ConvolveFFTStereo(const FAudioPluginSourceInputData& InputData,
-// 	const TArray<float>& IR, FAudioPluginSourceOutputData& OutputData)
-// {
-// 	const float* InBuf = InputData.AudioBuffer->GetData();
-// 	float* OutBuf = OutputData.AudioBuffer.GetData();
-//
-// 	int32 HopSize = 512;
-// 	int32 PartitionSize = 1024;
-//
-// 	Convolver3.Initialize(IR, 512, 1024);
-// 	
-// 	// TODO use OLA convolver
-// 	for (int hop = 0; hop < 2; ++hop)
-// 	{
-// 		// 1) Copy the next HopSize frames from the interleaved buffer...
-// 		float InHopL[HopSize], InHopR[HopSize];
-// 		for (int i = 0; i < HopSize; ++i)
+// 		FMemory::Memset(InBuf.GetData(), 0, InBuf.Num() * sizeof(float));
+// 		if (ProcessingIn > 0)
 // 		{
-// 			int idx = (hop * HopSize + i) * 2;
-// 			InHopL[i] = InBuf[idx];
-// 			InHopR[i] = InBuf[idx + 1];
+// 			FMemory::Memcpy(InBuf.GetData(), &In[ProcessedIn], ProcessingIn * sizeof(float));
 // 		}
-//
-// 		// 2) Slide the delay lines and append the new hop:
-// 		FMemory::Memmove(&InputDelayL[0],
-// 						 &InputDelayL[HopSize],
-// 						 (PartitionSize - HopSize) * sizeof(float));
-// 		FMemory::Memmove(&InputDelayR[0],
-// 						 &InputDelayR[HopSize],
-// 						 (PartitionSize - HopSize) * sizeof(float));
-//
-// 		FMemory::Memcpy(&InputDelayL[PartitionSize - HopSize],
-// 						InHopL,
-// 						HopSize * sizeof(float));
-// 		FMemory::Memcpy(&InputDelayR[PartitionSize - HopSize],
-// 						InHopR,
-// 						HopSize * sizeof(float));
-//
-// 		// 3) Convolve each full window:
-// 		float OutHopL[HopSize], OutHopR[HopSize];
-// 		Convolver3.Process(InputDelayL.GetData(), OutHopL);
-// 		Convolver3.Process(InputDelayR.GetData(), OutHopR);
-//
-// 		// 4) Write back into the correct position of the interleaved output:
-// 		for (int i = 0; i < HopSize; ++i)
-// 		{
-// 			int idx = (hop * HopSize + i) * 2;
-// 			OutBuf[idx]     = FMath::Clamp(OutHopL[i], -1.f, 1.f);
-// 			OutBuf[idx + 1] = FMath::Clamp(OutHopR[i], -1.f, 1.f);
-// 		}
-// 	}
-// }
-
-// void FFrequenSeeAudioReverbPlugin::ConvolveFFTStereo(const FAudioPluginSourceInputData& InputData,
-// 	const TArray<float>& IR, FAudioPluginSourceOutputData& OutputData)
-// {
-// 	const float* InterleavedInput = InputData.AudioBuffer->GetData();
-// 	float* InterleavedOutput = OutputData.AudioBuffer.GetData();
-//
-// 	Convolver2.Initialize(IR, 1024);
-// 	Convolver2.ProcessStereo(InterleavedInput, InterleavedOutput);
-// 	
-// 	for (int32 i = 0; i < OutputData.AudioBuffer.Num(); ++i)
-// 	{
-// 		InterleavedOutput[i] = FMath::Clamp(InterleavedOutput[i], -1.0f, 1.0f);
-// 	}
-// }
-
-// void FFrequenSeeAudioReverbPlugin::ConvolveFFTStereo(const FAudioPluginSourceInputData& InputData,
-// 	const TArray<float>& IR, FAudioPluginSourceOutputData& OutputData)
-// {
-// 	int Frames = FrameSize;
-// 	const float* InterleavedInput = InputData.AudioBuffer->GetData();
-// 	float* InterleavedOutput = OutputData.AudioBuffer.GetData();
-// 	
-// 	// Deinterleave
-// 	for(int i=0; i<Frames; i++){
-// 		InLeft[i] = InterleavedInput[i*2];
-// 		InRight[i] = InterleavedInput[i*2+1];
-// 	}
-//
-// 	FPartitionedFFTConvolver Convolver;
-// 	Convolver.Initialize(IR);
-//
-// 	// Process channels
-// 	Convolver.ProcessBlock(InLeft.GetData(), OutLeft.GetData(), Frames);
-// 	Convolver.ProcessBlock(InRight.GetData(), OutRight.GetData(), Frames);
-//
-// 	// Interleave output
-// 	for(int i=0; i<Frames; i++){
-// 		InterleavedOutput[i*2] = FMath::Tanh(OutLeft[i]);
-// 		InterleavedOutput[i*2+1] = FMath::Tanh(OutRight[i]);
-// 	}
-// }
-
-// void FFrequenSeeAudioReverbPlugin::ConvolveFFTStereo(const FAudioPluginSourceInputData& InputData,
-// 	const TArray<float>& IR, FAudioPluginSourceOutputData& OutputData)
-// {
-// 	bool Success = Convolver.init(256*4, IR.GetData(), IR.Num());
-// 	if (!Success)
-// 	{
-// 		UE_LOG(LogTemp, Error, TEXT("Failed to initialize FFT convolver"));
-// 		return;
-// 	}
-// 	float* DrySignal = InputData.AudioBuffer->GetData();
-// 	float* OutWetSignal = OutputData.AudioBuffer.GetData();
-//
-// 	const int32 FrameSize = InputData.AudioBuffer->Num(); // Interleaved stereo
-// 	const int32 ChannelFrameSize = FrameSize / 2;
-//
-// 	// Deinterleave dry signal into separate Left and Right arrays
-// 	TArray<float> DryLeft, DryRight;
-// 	DryLeft.SetNumZeroed(ChannelFrameSize);
-// 	DryRight.SetNumZeroed(ChannelFrameSize);
-//
-// 	for (int32 i = 0; i < ChannelFrameSize; ++i)
-// 	{
-// 		DryLeft[i] = DrySignal[i * 2];
-// 		DryRight[i] = DrySignal[i * 2 + 1];
-// 	}
-//
-// 	// Prepare output buffers (wet signal per channel)
-// 	TArray<float> WetLeft, WetRight;
-// 	WetLeft.SetNumZeroed(ChannelFrameSize);
-// 	WetRight.SetNumZeroed(ChannelFrameSize);
-//
-// 	fftconvolver::FFTConvolver &ConvRef = Convolver; 
-// 	auto Convolve = [&](float* In, float* Out)
-// 	{
-// 		size_t processedOut = 0;
-// 		size_t processedIn = 0;
-// 		while (processedOut < ChannelFrameSize)
-// 		{
-// 			const size_t blockSize = 256; 
 //       
-// 			const size_t remainingOut = ChannelFrameSize - processedOut;
-// 			const size_t remainingIn =  ChannelFrameSize - processedIn;
+// 		Convolver.process(InBuf.GetData(), &Out[ProcessedOut], ProcessingOut);
 //       
-// 			const size_t processingOut = std::min(remainingOut, blockSize);
-// 			const size_t processingIn = std::min(remainingIn, blockSize);
-//       
-// 			FMemory::Memset(In, 0, ChannelFrameSize * sizeof(fftconvolver::Sample));
-// 			if (processingIn > 0)
-// 			{
-// 				memcpy(In, &In[processedIn], processingIn * sizeof(fftconvolver::Sample));
-// 			}
-//       
-// 			ConvRef.process(In, &Out[processedOut], processingOut);
-//       
-// 			processedOut += processingOut;
-// 			processedIn += processingIn;
-// 		}
-// 	};
-//
-// 	// Convolve(DryLeft.GetData(), WetLeft.GetData());
-// 	// Convolve(DryRight.GetData(), WetRight.GetData());
-// 	Convolver.process(DryLeft.GetData(), WetLeft.GetData(), 1024);
-// 	Convolver.reset();
-//
-// 	for (int32 i = 0; i < ChannelFrameSize; ++i)
-// 	{
-// 		OutWetSignal[i * 2] = FMath::Tanh(WetLeft[i]);
-// 		OutWetSignal[i * 2 + 1] = FMath::Tanh(WetLeft[i]);
+// 		ProcessedOut += ProcessingOut;
+// 		ProcessedIn += ProcessingIn;
 // 	}
 // }
 

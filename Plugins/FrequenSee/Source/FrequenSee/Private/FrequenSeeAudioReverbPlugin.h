@@ -2,12 +2,9 @@
 #include "DSP/AlignedBlockBuffer.h"
 #include "FrequenSeeAudioComponent.h"
 #include "Sound/SoundEffectSubmix.h"
-#include "ConvolutionReverb.h"
 #include "FrequenSeeAudioReverbSettings.h"
-// #include "FFTConvolver/FFTConvolver.h"
-#include "FrequenSeeFFTConvolver/FFTConvolver.h"
-#include "FrequenSeeFFTConvolver/FFTConvolver2.h"
-#include "FrequenSeeFFTConvolver/FFTConvolver3.h"
+#include "CircularBuffer.h"
+#include "FrequenSeeFFTConvolver/FFTConvolver/FFTConvolver.h"
 #include "FrequenSeeAudioReverbPlugin.generated.h"
 
 struct FFrequenSeeAudioReverbSource
@@ -51,6 +48,7 @@ public:
 	
 private:
 	int SamplingRate = 0;
+	float SimulatedDuration = 1.0f;
 	int FrameSize = 0;
 	// each render frame
 	int CurrentFrame = 0;
@@ -59,29 +57,22 @@ private:
 	// audio buffer num
 	int AudioBufferNum = 0;
 	
-	TArray<float> InLeft, InRight, OutLeft, OutRight;
+	fftconvolver::FFTConvolver Convolver;
 
-	// fftconvolver::FFTConvolver Convolver;
-	FFTConvolverStereo2 Convolver2;
-	FFTConvolver3 Convolver3;
-	TArray<float> InputDelayL, InputDelayR;
-	TUniquePtr<Audio::FConvolutionReverb> rv;
-	Audio::FConvolutionReverbInitData InInitData;
+	FCircularAudioBuffer AudioTailBufferLeft;
+	FCircularAudioBuffer AudioTailBufferRight;
+	TArray<float> CurrAudioTailLeft;
+	TArray<float> CurrAudioTailRight;
+	TArray<float> ConvOutputLeft;
+	TArray<float> ConvOutputRight;
 	
 	TArray<FFrequenSeeAudioReverbSource> Sources;
 	
 	TWeakObjectPtr<USoundSubmix> ReverbSubmix;
 
 	FSoundEffectSubmixPtr ReverbSubmixEffect;
-
-	void ConvolveStereo(const FAudioPluginSourceInputData& InputData,
-		const TArray<float>& IR_Left,
-		const TArray<float>& IR_Right,
-		FAudioPluginSourceOutputData& OutputData);
-
-	void ConvolveFFTStereo(const FAudioPluginSourceInputData& InputData,
-		const TArray<float>& IR,
-		FAudioPluginSourceOutputData& OutputData);
+	
+	void ConvolveFFT(const TArray<float>& IR, const TArray<float>& Input, TArray<float>& Output);
 };
 
 class FFrequenSeeAudioReverbPluginFactory : public IAudioReverbFactory

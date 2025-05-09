@@ -57,6 +57,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FrequenSeeAudioComponent")
 	bool bGenerateReverb = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FrequenSeeAudioComponent")
+    bool bApplyReverb = true;
+
 	UPROPERTY(VisibleAnywhere)
 	ADefaultPawn* Player;
 
@@ -103,6 +106,7 @@ private:
 	// audio ray tracing sampling bins of float energy values
 	// dummy values assuming 44.1kHz sampling rate and 2 seconds of audio
 	int SampleRate = 48000;
+	// int SampleRate = 44100;
 	int NumChannels = 2;
 	float SimulatedDuration = 1.0f;
 	float BinDuration = 0.0001f; // 0.1ms

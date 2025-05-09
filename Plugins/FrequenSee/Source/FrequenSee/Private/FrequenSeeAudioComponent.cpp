@@ -44,8 +44,11 @@ UFrequenSeeAudioComponent::UFrequenSeeAudioComponent()
 	// under content
 	FString ContentDir = FPaths::ProjectContentDir();
 	FString ImpulsePath = ContentDir + TEXT("extracted_audio.txt");
+	// FString ImpulsePath = ContentDir + TEXT("ir_44k.txt");
 	LoadFloatArray(ImpulsePath, ImpulseBuffer[0]);
-	ImpulseBuffer[1] = ImpulseBuffer[0];
+	NormalizeImpulseResponse(ImpulseBuffer[0]);
+	LoadFloatArray(ImpulsePath, ImpulseBuffer[1]);
+	NormalizeImpulseResponse(ImpulseBuffer[1]);
 	LoadFloatArray(FPaths::ProjectSavedDir() + TEXT("input_audio.txt"), AudioBuffer);
 	AudioBufferNum++;
 
@@ -101,9 +104,6 @@ void UFrequenSeeAudioComponent::BeginPlay()
 void UFrequenSeeAudioComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-	USoundWave* SoundWave = Cast<USoundWave>(Sound);
-	SoundWave->RawData
 
 	FrameCount++;
 	// UE_LOG(LogTemp, Warning, TEXT("FRAME DELTA: %f"), DeltaTime);
@@ -480,7 +480,7 @@ void UFrequenSeeAudioComponent::ReconstructImpulseResponse()
 		}
 
 		ImpulseResponse = MoveTemp(Filtered);
-		// NormalizeImpulseResponse(ImpulseResponse);
+		NormalizeImpulseResponse(ImpulseResponse);
 		GenerateDummyImpulseResponse(ImpulseResponse);
 	}
 	
@@ -523,18 +523,25 @@ void UFrequenSeeAudioComponent::ReconstructImpulseResponse()
 
 void UFrequenSeeAudioComponent::NormalizeImpulseResponse(TArray<float>& IR)
 {
+	// Step 1: Compute L2 norm (sqrt of sum of squares)
 	float SumSquares = 0.0f;
-	for (float Value : IR)
+	for (float Sample : IR)
 	{
-		SumSquares += Value * Value;
+		SumSquares += Sample * Sample;
 	}
+
 	float Norm = FMath::Sqrt(SumSquares);
-	if (Norm > 0.0f)
+
+	// Avoid division by zero
+	if (Norm < KINDA_SMALL_NUMBER)
 	{
-		for (float& Value : IR)
-		{
-			Value /= Norm;
-		}
+		return;
+	}
+
+	// Step 2: Normalize each sample
+	for (float& Sample : IR)
+	{
+		Sample /= Norm;
 	}
 }
 
