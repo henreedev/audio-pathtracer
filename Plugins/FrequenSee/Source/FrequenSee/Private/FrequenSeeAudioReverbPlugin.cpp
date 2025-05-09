@@ -157,7 +157,7 @@ void FFrequenSeeAudioReverbPlugin::ProcessSourceAudio(const FAudioPluginSourceIn
 	const float* InBufferData = InputData.AudioBuffer->GetData();
 	const float* LeftBufferData = ConvOutputLeft.GetData();
 	const float* RightBufferData = ConvOutputRight.GetData();
-	const float MixAlpha = 0.8f;
+	const float MixAlpha = 1.0f;
 	for (int SampleIndex = 0; SampleIndex < FrameSize; ++SampleIndex)
 	{
 		OutBufferData[SampleIndex * 2] = FMath::Clamp(LeftBufferData[CurrSampleStartIndex + SampleIndex], -1.0f, 1.0f) * MixAlpha +

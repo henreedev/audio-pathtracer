@@ -219,15 +219,22 @@ void UAudioRayTracingSubsystem::UpdateSource(FActiveSource& Src)
     // Log contents of Src.AudioComp's EnergyBuffer 
     if (Src.AudioComp.IsValid())
     {
-        UE_LOG(LogTemp, Warning, TEXT("Energy Buffer contents:"));
+        // UE_LOG(LogTemp, Warning, TEXT("Energy Buffer contents:"));
         const TArray<float>& EnergyBuffer = Src.AudioComp->EnergyBuffer;
         for (int32 i = 0; i < EnergyBuffer.Num(); ++i)
         {
             if (EnergyBuffer[i] > 0.0f)
             {
-                UE_LOG(LogTemp, Warning, TEXT("Buffer[%d] = %f"), i, EnergyBuffer[i]);
+                // UE_LOG(LogTemp, Warning, TEXT("Buffer[%d] = %f"), i, EnergyBuffer[i]);
             }
         }
+    }
+
+    // Update impulse response of audio component
+    if (Src.AudioComp.IsValid())
+    {
+        Src.AudioComp->FlushEnergyBuffer();
+        Src.AudioComp->ReconstructImpulseResponse();
     }
     
 }
@@ -574,7 +581,7 @@ float UAudioRayTracingSubsystem::DrawSegmentedLine(FVector& Start, FVector& End,
     float TimePassed = 0.0f;
     float DistTravelled = 0.f;   
     auto World = GetWorld();
-    UE_LOG(LogTemp, Warning, TEXT("Start: %s"), *Start.ToString());
+    // UE_LOG(LogTemp, Warning, TEXT("Start: %s"), *Start.ToString());
     // Simulate ticks with fixed delta time, drawing a ray segment on each tick with delay and length based on time passed
     while (DistTravelled < Dist)
     {
@@ -702,7 +709,7 @@ void UAudioRayTracingSubsystem::VisualizePath(const FSoundPath& Path, float Dura
 
         // Draw line between them at a fixed speed, returning how long it takes to draw the line at that pace
         // Delay the drawing by time taken for previous lines so far
-        UE_LOG(LogTemp, Warning, TEXT("Speed: %f"), Speed);
+        // UE_LOG(LogTemp, Warning, TEXT("Speed: %f"), Speed);
         float TimePassed = DrawSegmentedLine(CurrentNode.Position, NextNode.Position, Speed, Color, TotalTimePassed, bPersistent);
 
         // Add time taken to total count for future delays
@@ -766,11 +773,15 @@ void UAudioRayTracingSubsystem::VisualizeBDPT(const TArray<FSoundPath>& ForwardP
             if (!IsValid(this)) return;
             
             FlushPersistentDebugLines(GetWorld());
-            
+            float MaxEnergy = 0.0f;
+            for (const FSoundPath& Path : ConnectedPaths)
+            {
+                MaxEnergy = FMath::Max(MaxEnergy, Path.EnergyContribution);
+            }
             for (const FSoundPath& Path : ConnectedPaths)
             {
                 // Get path energy
-                float Energy = Path.EnergyContribution;
+                float Energy = Path.EnergyContribution / MaxEnergy; 
 
                 // Lerp its color between bright green and dark red based on this energy
                 // Start and end colors

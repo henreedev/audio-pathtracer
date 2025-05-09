@@ -124,7 +124,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void RunScript(const FString &FilePath);
 
-private:
+public:
 	float Timer = 0.0f;
 	float OcclusionAttenuation = 1.f;
 

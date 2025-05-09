@@ -46,11 +46,13 @@ UFrequenSeeAudioComponent::UFrequenSeeAudioComponent()
 	FString ContentDir = FPaths::ProjectContentDir();
 	FString ImpulsePath = ContentDir + TEXT("extracted_audio.txt");
 	// FString ImpulsePath = ContentDir + TEXT("ir_44k.txt");
-	LoadFloatArray(ImpulsePath, ImpulseBuffer[0]);
-	NormalizeImpulseResponse(ImpulseBuffer[0]);
-	LoadFloatArray(ImpulsePath, ImpulseBuffer[1]);
-	NormalizeImpulseResponse(ImpulseBuffer[1]);
-	LoadFloatArray(FPaths::ProjectSavedDir() + TEXT("input_audio.txt"), AudioBuffer);
+	ImpulseBuffer[0].Init(0.0f, NumSamples);
+	ImpulseBuffer[1].Init(0.0f, NumSamples);
+	// LoadFloatArray(ImpulsePath, ImpulseBuffer[0]);
+	// NormalizeImpulseResponse(ImpulseBuffer[0]);
+	// LoadFloatArray(ImpulsePath, ImpulseBuffer[1]);
+	// NormalizeImpulseResponse(ImpulseBuffer[1]);
+	// LoadFloatArray(FPaths::ProjectSavedDir() + TEXT("input_audio.txt"), AudioBuffer);
 	AudioBufferNum++;
 
 	// float MaxVal = 0.0f;
@@ -114,9 +116,16 @@ void UFrequenSeeAudioComponent::BeginPlay()
 		OcclusionSettings = NewObject<UFrequenSeeAudioOcclusionSettings>(this);
 	}
 
+	if (!ReverbSettings.IsValid())
+	{
+		ReverbSettings = NewObject<UFrequenSeeAudioReverbSettings>(this);
+	}
+
 	// Assign the new instance to the occlusion plugin settings array
 	AttenuationOverrides.PluginSettings.OcclusionPluginSettingsArray.Empty();
 	AttenuationOverrides.PluginSettings.OcclusionPluginSettingsArray.Add(OcclusionSettings.Get());
+	AttenuationOverrides.PluginSettings.ReverbPluginSettingsArray.Empty();
+	AttenuationOverrides.PluginSettings.ReverbPluginSettingsArray.Add(ReverbSettings.Get());
 	// Make player's hitbox bigger
 	// Player->GetCollisionComponent()->SetRelativeScale3D(FVector(15.0f, 15.0f, 15.0f));
 
@@ -416,7 +425,11 @@ void UFrequenSeeAudioComponent::ReconstructImpulseResponse()
 	{
 		const TArray<float>& EnergyResponse = EnergyBuffer;
 		TArray<float>& ImpulseResponse = ImpulseBuffer[Channel];
-		FMemory::Memset(ImpulseResponse.GetData(), 0, sizeof(float) * ImpulseResponse.Num());
+		if (ImpulseBuffer[Channel].Num() == 0)
+		{
+			ImpulseBuffer[Channel].SetNumZeroed(NumSamples);
+		}
+		// FMemory::Memset(ImpulseResponse.GetData(), 0, sizeof(float) * ImpulseResponse.Num());
 	 	
 		for (int32 Bin = 0; Bin < NumBins; ++Bin) 
 		{
@@ -511,6 +524,9 @@ void UFrequenSeeAudioComponent::NormalizeImpulseResponse(TArray<float>& IR)
 
 	float Norm = FMath::Sqrt(SumSquares);
 
+	UE_LOG(LogTemp, Warning, TEXT("Norm: %f"), Norm);
+
+	
 	// Avoid division by zero
 	if (Norm < KINDA_SMALL_NUMBER)
 	{
@@ -521,6 +537,14 @@ void UFrequenSeeAudioComponent::NormalizeImpulseResponse(TArray<float>& IR)
 	for (float& Sample : IR)
 	{
 		Sample /= Norm;
+		// Sample = 1.0f; // FIXME
+		// if (Sample > 0.0f)
+		// {
+			// Log samples above 1.0
+			// UE_LOG(LogTemp, Warning, TEXT("Sample above 0: %f"), Sample);
+			// Sample = 1.0f;
+		// }
+		Sample = 0.0f; // FIXME
 	}
 }
 
