@@ -341,17 +341,16 @@ void UAudioRayTracingSubsystem::GeneratePath(const AActor* ActorToIgnore, FSound
             FVector Dir;
             if (CurrentNormal.IsNearlyZero())
             {
-                // Pick a random direction in sphere
-                Dir = FMath::VRandCone(FVector::UpVector, FMath::DegreesToRadians(180.f));
-                // Probability of an angle out of 4PI steradians
-                float Prob = 1.0f / (4.0f * PI);
-                CurrentProbability = Prob * RUSSIAN_ROULETTE_PROB;
+                Dir = FMath::VRand();
+                float PDF = 1.0f / (4.0f * PI);
+                CurrentProbability = PDF * RUSSIAN_ROULETTE_PROB;
             } else
             {
                 Dir = FMath::VRandCone(CurrentNormal, FMath::DegreesToRadians(90.f));
                 // Probability of an angle out of 2PI steradians (hemisphere)
-                float Prob = 1.0f / (2.0f * PI);
-                CurrentProbability = Prob * RUSSIAN_ROULETTE_PROB;
+                float CosTheta = FVector::DotProduct(Dir, CurrentNormal); // assumed normalized
+                float PDF = CosTheta / PI;
+                CurrentProbability = PDF * RUSSIAN_ROULETTE_PROB;
             }
             // 3. Shoot a ray, call GeneratePath recursively at impact point
 
@@ -421,33 +420,45 @@ FPathEnergyResult UAudioRayTracingSubsystem::EvaluatePath(FSoundPath& Path) cons
         }
         // TODO Multiply cosines of angles , divide by squared distance
         // float GeometryTerm = (float) FMath::Cos(Node.Normal.X) * FMath::Cos(Node.Normal.X) / FMath::Square(Distance);
-        float GeometryTerm = 1.0f / (2 * PI * NodeDistanceSqr);
-        // Energy *= BSDFFactor;
-        Energy *= GeometryTerm;
+        // FVector Direction = NextNode.Position - Node.Position.GetSafeNormal();
+        // float cosTheta_i = FMath::Max(FVector::DotProduct(Node.Normal, Direction), 0.0f);
+        // float cosTheta_j = FMath::Max(FVector::DotProduct(NextNode.Normal, -Direction), 0.0f);
+        // float G = (cosTheta_i * cosTheta_j) / NodeDistanceSqr;
 
+        // float GeometryTerm = 1.0f / (4 * PI * NodeDistanceSqr);
+        // Energy *= BSDFFactor;
+        // Energy *= GeometryTerm;
+        // Energy *= G;
         // Apply media term (equation 3)
-        constexpr float AIR_ABSORPTION_FACTOR = 0.00005;
+        constexpr float AIR_ABSORPTION_FACTOR = 0.05;
         float MediaAbsorption = exp(-AIR_ABSORPTION_FACTOR * NodeDistance);
         Energy *= MediaAbsorption;
-        Energy /= Node.Probability;
+        Energy /= powf(Node.Probability, 0.1);
         Probability *= Node.Probability;
-
+        
         if (Energy > USED_RAY_COUNT)
         {
-            UE_LOG(LogTemp, Warning, TEXT("Energy > USED_RAY_COUNT!"));
-            UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, NodeDistance);
-            UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, NodeDistanceSqr);
-            UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, Distance);
-            UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, BSDFFactor);
-            UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, GeometryTerm);
-            UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, MediaAbsorption);
-            UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, Energy);
-            UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, Probability);
+            int j = 1;
+            // UE_LOG(LogTemp, Warning, TEXT("Energy > USED_RAY_COUNT!"));
+            // UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, NodeDistance);
+            // UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, NodeDistanceSqr);
+            // UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, Distance);
+            // UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, BSDFFactor);
+            // UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, GeometryTerm);
+            // UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, MediaAbsorption);
+            // UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, Energy);
+            // UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, Probability);
         }
         // Log Everything
         
         
     }
+
+    // Clamp energy
+    // Energy = FMath::Min(Energy, 1.0f);
+
+    // Un-normalize energy (FIXME)
+    Energy *= 10.f;
     
     // Update path values
     Path.TotalLength = Distance;

@@ -59,7 +59,7 @@ public:
 	TArray<float> EnergyBuffer;
 
 	int32 BinSizeMs = 1;
-	float DurationSeconds = 3.0f;
+	float DurationSeconds = 1.0f;
 	int32 NumBins = FMath::CeilToInt(DurationSeconds * 1000.0f / BinSizeMs);
 
 	void FlushEnergyBuffer()
