@@ -154,17 +154,17 @@ void UAudioRayTracingSubsystem::UpdateSources(float DeltaTime)
         {
             EvaluatePath(Path);
         }
-        if (VisualizeTimer <= 0.0f)
-        {
-            VisualizeBDPT(ForwardPaths, BackwardPaths, ConnectedPaths, VISUALIZE_DURATION);
-
-            // Reset timer
-            VisualizeTimer = VISUALIZE_DURATION;
-        } else
-        {
-            // Decrement timer
-            VisualizeTimer -= DeltaTime;
-        }
+        // if (VisualizeTimer <= 0.0f)
+        // {
+        //     VisualizeBDPT(ForwardPaths, BackwardPaths, ConnectedPaths, VISUALIZE_DURATION);
+        //
+        //     // Reset timer
+        //     VisualizeTimer = VISUALIZE_DURATION;
+        // } else
+        // {
+        //     // Decrement timer
+        //     VisualizeTimer -= DeltaTime;
+        // }
     }
 }
 
@@ -369,25 +369,25 @@ FPathEnergyResult UAudioRayTracingSubsystem::EvaluatePath(FSoundPath& Path) cons
             BSDFFactor = Node.Material.Get()->Material->Absorption[2].Value / PI;
         }
         // TODO Multiply cosines of angles , divide by squared distance
-        float GeometryTerm = (float) FMath::Cos(Node.Normal.Y) * FMath::Cos(Node.Normal.Y) / FMath::Square(Distance);
-
-        Energy *= BSDFFactor;
+        // float GeometryTerm = (float) FMath::Cos(Node.Normal.X) * FMath::Cos(Node.Normal.X) / FMath::Square(Distance);
+        float GeometryTerm = 1.0f / (4.0f * PI * FMath::Square(Distance));
+        // Energy *= BSDFFactor;
         Energy *= GeometryTerm;
  
         Probability *= Node.Probability;
     }
-
     
     // Apply media term (equation 3)
-    constexpr float AIR_ABSORPTION_FACTOR = 0.005;
+    constexpr float AIR_ABSORPTION_FACTOR = 0.5;
     float MediaAbsorption = exp(-AIR_ABSORPTION_FACTOR * Distance);
+    
     Energy *= MediaAbsorption;
     Energy /= Probability;
     
     // Update path values
     Path.TotalLength = Distance;
     Path.EnergyContribution = Energy;
-    
+    UE_LOG(LogTemp, Warning, TEXT("Energy: %f, Distance: %f, MediaAbsorption: %f"), Energy, Distance, MediaAbsorption);
     return {Distance / SoundSpeed, Energy};
 }
 
@@ -465,7 +465,6 @@ float UAudioRayTracingSubsystem::DrawSegmentedLine(FVector& Start, FVector& End,
     FVector Dir = Diff.GetSafeNormal();
     float Dist = Diff.Length();
     FVector CurrentPos = Start;
-
     
     const float DELTATIME = 1.0f / DEBUG_RAY_FPS;
     FVector Increment = Dir * Speed * DELTATIME;
