@@ -223,7 +223,10 @@ void UAudioRayTracingSubsystem::UpdateSource(FActiveSource& Src)
         const TArray<float>& EnergyBuffer = Src.AudioComp->EnergyBuffer;
         for (int32 i = 0; i < EnergyBuffer.Num(); ++i)
         {
-            UE_LOG(LogTemp, Warning, TEXT("Buffer[%d] = %f"), i, EnergyBuffer[i]);
+            if (EnergyBuffer[i] > 0.0f)
+            {
+                UE_LOG(LogTemp, Warning, TEXT("Buffer[%d] = %f"), i, EnergyBuffer[i]);
+            }
         }
     }
     
@@ -393,6 +396,7 @@ FPathEnergyResult UAudioRayTracingSubsystem::EvaluatePath(FSoundPath& Path) cons
 {
     constexpr float SoundSpeed = 343.0f;
     float Distance = 0.0f;
+    float ScaledDistance = 0.0f;
     float Energy = 1.0f;
     float Probability = 1.0f;
     
@@ -401,6 +405,13 @@ FPathEnergyResult UAudioRayTracingSubsystem::EvaluatePath(FSoundPath& Path) cons
         FSoundPathNode& Node = Path.Nodes[i];
         FSoundPathNode& NextNode = Path.Nodes[i + 1];
         Distance += FVector::Dist(Node.Position, NextNode.Position);
+        float NodeDistance = FVector::Dist(Node.Position, NextNode.Position) / 1000.f;
+        ScaledDistance += NodeDistance;
+        if (NodeDistance < 1.0f)
+        {
+            continue; // Don't allow glitched collisions in-place to contribute
+        }
+        float NodeDistanceSqr = NodeDistance * NodeDistance;
         
         // diffuse = reflectivity / PI, where reflectivity is 0.0-1.0
         float BSDFFactor = 1.0f;
@@ -409,26 +420,42 @@ FPathEnergyResult UAudioRayTracingSubsystem::EvaluatePath(FSoundPath& Path) cons
             BSDFFactor = Node.Material.Get()->Material->Absorption[2].Value / PI;
         }
         // TODO Multiply cosines of angles , divide by squared distance
-        float GeometryTerm = (float) FMath::Cos(Node.Normal.Y) * FMath::Cos(Node.Normal.Y) / FMath::Square(Distance);
-
-        Energy *= BSDFFactor;
+        // float GeometryTerm = (float) FMath::Cos(Node.Normal.X) * FMath::Cos(Node.Normal.X) / FMath::Square(Distance);
+        float GeometryTerm = 1.0f / (2 * PI * NodeDistanceSqr);
+        // Energy *= BSDFFactor;
         Energy *= GeometryTerm;
- 
-        Probability *= Node.Probability;
-    }
 
-    
-    // Apply media term (equation 3)
-    constexpr float AIR_ABSORPTION_FACTOR = 0.005;
-    float MediaAbsorption = exp(-AIR_ABSORPTION_FACTOR * Distance);
-    Energy *= MediaAbsorption;
-    Energy /= Probability;
+        // Apply media term (equation 3)
+        constexpr float AIR_ABSORPTION_FACTOR = 0.00005;
+        float MediaAbsorption = exp(-AIR_ABSORPTION_FACTOR * NodeDistance);
+        Energy *= MediaAbsorption;
+        Energy /= Node.Probability;
+        Probability *= Node.Probability;
+
+        if (Energy > USED_RAY_COUNT)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Energy > USED_RAY_COUNT!"));
+            UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, NodeDistance);
+            UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, NodeDistanceSqr);
+            UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, Distance);
+            UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, BSDFFactor);
+            UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, GeometryTerm);
+            UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, MediaAbsorption);
+            UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, Energy);
+            UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, Probability);
+        }
+        // Log Everything
+        
+        
+    }
     
     // Update path values
     Path.TotalLength = Distance;
     Path.EnergyContribution = Energy;
+
+    // UE_LOG(LogTemp, Warning, TEXT("Energy: %f, Distance: %f, MediaAbsorption: %f"), Energy, Distance, MediaAbsorption);
     
-    return {Distance / SoundSpeed, Energy};
+    return {ScaledDistance / SoundSpeed, Energy};
 }
 
 /** -------------------------- PATH VISUALIZATION --------------------------- */
@@ -515,22 +542,22 @@ float UAudioRayTracingSubsystem::DrawSegmentedLine(FVector& Start, FVector& End,
     const float DELTATIME = 1.0f / DEBUG_RAY_FPS;
     FVector Increment = Dir * Speed * DELTATIME;
     float DistIncrement = Increment.Length();
-    UE_LOG(LogTemp, Warning, TEXT("DistIncrement: %f"), DistIncrement);
-    UE_LOG(LogTemp, Warning, TEXT("Total Launches: %f"), (Dist / DistIncrement));
+    // UE_LOG(LogTemp, Warning, TEXT("DistIncrement: %f"), DistIncrement);
+    // UE_LOG(LogTemp, Warning, TEXT("Total Launches: %f"), (Dist / DistIncrement));
 
     // Log all variables
-    UE_LOG(LogTemp, Warning, TEXT("Start: %s"), *Start.ToString());
-    UE_LOG(LogTemp, Warning, TEXT("End: %s"), *End.ToString());
-    UE_LOG(LogTemp, Warning, TEXT("Speed: %f"), Speed);
-    UE_LOG(LogTemp, Warning, TEXT("Dist: %f"), Dist);
-    UE_LOG(LogTemp, Warning, TEXT("Dir: %s"), *Dir.ToString());
-    UE_LOG(LogTemp, Warning, TEXT("CurrentPos: %s"), *CurrentPos.ToString());
-    UE_LOG(LogTemp, Warning, TEXT("DrawDelay: %f"), DrawDelay);
-    UE_LOG(LogTemp, Warning, TEXT("bPersistent: %d"), bPersistent);
-    UE_LOG(LogTemp, Warning, TEXT("Color: %s"), *Color.ToString());
-    UE_LOG(LogTemp, Warning, TEXT("DELTATIME: %f"), DELTATIME);
-    UE_LOG(LogTemp, Warning, TEXT("Increment: %s"), *Increment.ToString());
-    UE_LOG(LogTemp, Warning, TEXT("DistIncrement: %f"), DistIncrement);
+    // UE_LOG(LogTemp, Warning, TEXT("Start: %s"), *Start.ToString());
+    // UE_LOG(LogTemp, Warning, TEXT("End: %s"), *End.ToString());
+    // UE_LOG(LogTemp, Warning, TEXT("Speed: %f"), Speed);
+    // UE_LOG(LogTemp, Warning, TEXT("Dist: %f"), Dist);
+    // UE_LOG(LogTemp, Warning, TEXT("Dir: %s"), *Dir.ToString());
+    // UE_LOG(LogTemp, Warning, TEXT("CurrentPos: %s"), *CurrentPos.ToString());
+    // UE_LOG(LogTemp, Warning, TEXT("DrawDelay: %f"), DrawDelay);
+    // UE_LOG(LogTemp, Warning, TEXT("bPersistent: %d"), bPersistent);
+    // UE_LOG(LogTemp, Warning, TEXT("Color: %s"), *Color.ToString());
+    // UE_LOG(LogTemp, Warning, TEXT("DELTATIME: %f"), DELTATIME);
+    // UE_LOG(LogTemp, Warning, TEXT("Increment: %s"), *Increment.ToString());
+    // UE_LOG(LogTemp, Warning, TEXT("DistIncrement: %f"), DistIncrement);
     
     
     float TimePassed = 0.0f;
