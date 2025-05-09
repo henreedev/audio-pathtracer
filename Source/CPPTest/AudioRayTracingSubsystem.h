@@ -166,5 +166,7 @@ public:
 	// Calls UpdateSources with bForceUpdate = true
 	void ForceUpdateSources();
 
+	void UpdateSource(FActiveSource& Src);
+
 	
 };

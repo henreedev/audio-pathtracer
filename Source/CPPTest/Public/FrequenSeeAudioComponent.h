@@ -53,7 +53,31 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FrequenSeeAudioComponent")
 	float RaycastInterval = 1.0f;
-	
+
+	// ENERGY BUFFER
+	UPROPERTY()
+	TArray<float> EnergyBuffer;
+
+	int32 BinSizeMs = 1;
+	float DurationSeconds = 3.0f;
+	int32 NumBins = FMath::CeilToInt(DurationSeconds * 1000.0f / BinSizeMs);
+
+	void FlushEnergyBuffer()
+	{
+		EnergyBuffer.SetNumZeroed(NumBins); // Zeroed for safety
+	}
+
+	void UpdateEnergyBuffer(const TArray<float>& NewEnergyValues)
+	{
+		check(NewEnergyValues.Num() == NumBins); // Ensure correct size
+		EnergyBuffer = NewEnergyValues; // Flush and overwrite
+	}
+
+	void AddEnergyAtDelay(float DelaySeconds, float EnergyValue)
+	{
+		int32 BinIndex = FMath::Clamp(FMath::FloorToInt((DelaySeconds * 1000.f) / BinSizeMs), 0, EnergyBuffer.Num() - 1);
+		EnergyBuffer[BinIndex] += EnergyValue;
+	}
 
 	virtual void OnRegister() override;   // auto‑hook into subsystem
 	virtual void OnUnregister() override;
@@ -73,6 +97,8 @@ public:
 	 * Casts audio rays, adjusting the current output volume based on the average sound energy received by the listener.
 	 */
 	void UpdateSound();
+
+	
 
 	float GetOcclusionAttenuation() const { return OcclusionAttenuation; }
 

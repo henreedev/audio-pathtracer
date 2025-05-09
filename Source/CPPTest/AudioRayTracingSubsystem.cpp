@@ -85,8 +85,9 @@ void UAudioRayTracingSubsystem::Tick(float DeltaTime)
     // 1) Get listener position
  
 
-    // 2) Iterate sources (compact array each frame)
-    ActiveSources.RemoveAllSwap([](const FActiveSource& S){ return !S.AudioComp.IsValid(); });
+        // 2) Iterate sources (compact array each frame)
+        ActiveSources.RemoveAllSwap([](const FActiveSource& S){ return !S.AudioComp.IsValid(); });
+        // UE_LOG(LogTemp, Warning, TEXT("Active sources: %d"), ActiveSources.Num());
 
     // for (FActiveSource& Src : ActiveSources)
     // {
@@ -149,25 +150,7 @@ void UAudioRayTracingSubsystem::UpdateSources(float DeltaTime, bool bForceUpdate
         {
             for (FActiveSource& Src : ActiveSources)
             {
-                TArray<FSoundPath> ForwardPaths;
-                TArray<FSoundPath> BackwardPaths;
-                TArray<FSoundPath> ConnectedPaths;
-                GenerateFullPaths(Src, ForwardPaths, BackwardPaths, ConnectedPaths);
-    
-                for (FSoundPath& Path : ForwardPaths)
-                {
-                    EvaluatePath(Path);
-                }
-                for (FSoundPath& Path : BackwardPaths)
-                {
-                    EvaluatePath(Path);
-                }
-                for (FSoundPath& Path : ConnectedPaths)
-                {
-                    EvaluatePath(Path);
-                }
-
-                Visualize(Src);
+                UpdateSource(Src);
                 
                 // Reset timer
                 VisualizeTimer = VISUALIZE_DURATION;
@@ -182,36 +165,68 @@ void UAudioRayTracingSubsystem::UpdateSources(float DeltaTime, bool bForceUpdate
     {
         for (FActiveSource& Src : ActiveSources)
         {
-            // Visualize a few rays
-            Visualize(Src);
-
-            // Cast a lot more to update impulse response
-            TArray<FSoundPath> ForwardPaths;
-            TArray<FSoundPath> BackwardPaths;
-            TArray<FSoundPath> ConnectedPaths;
-
-            GenerateFullPaths(Src, ForwardPaths, BackwardPaths, ConnectedPaths);
-        
-            for (FSoundPath& Path : ForwardPaths)
-            {
-                EvaluatePath(Path);
-            }
-            
-            for (FSoundPath& Path : BackwardPaths)
-            {
-                EvaluatePath(Path);
-            }
-            
-            for (FSoundPath& Path : ConnectedPaths)
-            {
-                EvaluatePath(Path);
-            }
-
-            // TODO Implement energy buffers in FrequenSee Audio Component
-            // TODO Place energy of connected paths into bins in Src's energy buffer  
-            // TODO Normalize energy values based on total num rays
+            UpdateSource(Src);
         }
     }
+}
+
+void UAudioRayTracingSubsystem::UpdateSource(FActiveSource& Src)
+{
+    // Visualize a few rays
+    Visualize(Src);
+
+    // Cast a lot more to update impulse response
+    TArray<FSoundPath> ForwardPaths;
+    TArray<FSoundPath> BackwardPaths;
+    TArray<FSoundPath> ConnectedPaths;
+
+    GenerateFullPaths(Src, ForwardPaths, BackwardPaths, ConnectedPaths);
+        
+    for (FSoundPath& Path : ForwardPaths)
+    {
+        EvaluatePath(Path);
+    }
+            
+    for (FSoundPath& Path : BackwardPaths)
+    {
+        EvaluatePath(Path);
+    }
+    TArray<FPathEnergyResult> EnergyResults;
+    for (FSoundPath& Path : ConnectedPaths)
+    {
+        EnergyResults.Add(EvaluatePath(Path));
+    }
+
+    // Place energy of connected paths into bins in Src's energy buffer
+    // Flush it first
+    if (Src.AudioComp.IsValid())
+    {
+        Src.AudioComp->FlushEnergyBuffer();
+                    
+    }
+    // Place energy values
+    // Normalize energy values based on total num rays
+    float NormalizationFactor = 1.0f / (float) USED_RAY_COUNT;
+    for (FPathEnergyResult& Result : EnergyResults)
+    {
+        if (Src.AudioComp.IsValid())
+        {
+            float Energy = Result.Gain;
+            Energy *= NormalizationFactor;
+            Src.AudioComp->AddEnergyAtDelay(Result.DelaySeconds, Energy);
+        }
+    }
+    // Log contents of Src.AudioComp's EnergyBuffer 
+    if (Src.AudioComp.IsValid())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Energy Buffer contents:"));
+        const TArray<float>& EnergyBuffer = Src.AudioComp->EnergyBuffer;
+        for (int32 i = 0; i < EnergyBuffer.Num(); ++i)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Buffer[%d] = %f"), i, EnergyBuffer[i]);
+        }
+    }
+    
 }
 
 
