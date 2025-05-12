@@ -5,7 +5,6 @@
 #include "FrequenSeeAudioReverbSettings.h"
 #include "CircularBuffer.h"
 #include "FrequenSeeFFTConvolver/KissFFT/kiss_fftr.h"
-// #include "FrequenSeeFFTConvolver/FFTConvolver.h"
 #include "FrequenSeeAudioReverbPlugin.generated.h"
 
 struct FFrequenSeeAudioReverbSource
@@ -24,7 +23,7 @@ struct FFrequenSeeAudioReverbSource
 	void ClearBuffers();
 };
 
-class FREQUENSEE_API FFrequenSeeAudioReverbPlugin : public IAudioReverb
+class FFrequenSeeAudioReverbPlugin : public IAudioReverb
 {
 public:
 	FFrequenSeeAudioReverbPlugin();
@@ -58,7 +57,6 @@ private:
 	// audio buffer num
 	int AudioBufferNum = 0;
 	
-
 	FCircularAudioBuffer AudioTailBufferLeft;
 	FCircularAudioBuffer AudioTailBufferRight;
 	TArray<float> CurrAudioTailLeft;
@@ -71,7 +69,10 @@ private:
 	TArray<kiss_fft_cpx> InputFreq;
 	TArray<kiss_fft_cpx> IRFreq;
 	TArray<float> TimeDomainOutput;
-	TArray<TArray<float>> MY_IR;
+	TArray<float> IRPadded;
+	TArray<float> InputPadded;
+	int32 FFTSize;
+	
 	TArray<FFrequenSeeAudioReverbSource> Sources;
 	
 	TWeakObjectPtr<USoundSubmix> ReverbSubmix;
@@ -144,4 +145,3 @@ public:
 	UPROPERTY(EditAnywhere, Category = SubmixPreset)
 	FFrequenSeeAudioReverbSubmixPluginSettings Settings;
 };
-
