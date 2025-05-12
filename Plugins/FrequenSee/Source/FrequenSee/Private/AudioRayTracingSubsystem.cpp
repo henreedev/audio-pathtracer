@@ -557,11 +557,11 @@ void UAudioRayTracingSubsystem::Is_GeneratePath(const AActor* ActorToIgnore, FSo
     //add path to array of paths corresponding to this number of bounces
     if (fwd)
     {
-        samplesOfBounceFwd[bounces].emplace_back(OutPath);
+        subpathsOfBounceFwd[bounces].emplace_back(OutPath);
     }
     else
     {
-        samplesOfBounceBwd[bounces].emplace_back(OutPath);
+        subpathsOfBounceBwd[bounces].emplace_back(OutPath);
     }
 }
 
@@ -584,14 +584,14 @@ void UAudioRayTracingSubsystem::Is_NaiveConnections()
         // for each i-bounce path in forward dir
         for (int pathsF = 0; pathsF < bounceToSamples[i]; pathsF++)
         {
-            auto pathF = samplesOfBounceFwd[i][pathsF];
+            auto pathF = subpathsOfBounceFwd[i][pathsF];
             //for each bounce in backward dir
             for (int j=0; j < maxBounces; j++)
             {
                 // for each i-bounce path in forward dir
                 for (int pathsB = 0; pathsB < bounceToSamples[j]; pathsB++)
                 {
-                    auto pathB = samplesOfBounceFwd[j][pathsB];
+                    auto pathB = subpathsOfBounceFwd[j][pathsB];
                     FSoundPath connectedPath;
                         //if connection is successful
                     if (ConnectSubpaths(pathF, pathB, connectedPath))

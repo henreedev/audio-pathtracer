@@ -130,7 +130,7 @@ private:
 	int sampleBudget = 100;
 	int totalSamples = 0;
 	std::unordered_map<int,int> bounceToSamples{};
-	std::unordered_map<int,std::vector<FSoundPath>> samplesOfBounceFwd{}, samplesOfBounceBwd{};
+	std::unordered_map<int,std::vector<FSoundPath>> subpathsOfBounceFwd{}, subpathsOfBounceBwd{};
 	std::vector<std::vector<std::vector<FSoundPath>>> samples{};
 		//preparation step
 	void allocateSamples();
