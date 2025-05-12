@@ -24,6 +24,10 @@
 		{
 			"Name": "FrequenSee",
 			"Enabled": true
+		},
+		{
+			"Name": "ExampleCustomDataInterface",
+			"Enabled": true
 		}
 	]
 }

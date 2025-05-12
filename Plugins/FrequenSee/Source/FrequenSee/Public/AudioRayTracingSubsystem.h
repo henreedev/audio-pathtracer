@@ -149,7 +149,7 @@ private:
 	float VisualizeTimer = 0.0f;
 	static constexpr int DEBUG_RAY_COUNT = 25;
 	static constexpr int USED_RAY_COUNT = 1000;
-	const bool TickVisualization = true;
+	const bool TickVisualization = false;
 public:
 	/**
 	 * Given forward, backward, and connected paths, shows the complete process of:

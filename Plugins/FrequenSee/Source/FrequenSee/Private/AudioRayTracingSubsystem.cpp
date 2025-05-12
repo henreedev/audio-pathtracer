@@ -471,7 +471,7 @@ FPathEnergyResult UAudioRayTracingSubsystem::EvaluatePath(FSoundPath& Path) cons
     Path.TotalLength = Distance;
     Path.EnergyContribution = Energy;
 
-    // UE_LOG(LogTemp, Warning, TEXT("Energy: %f, Distance: %f, MediaAbsorption: %f"), Energy, Distance, MediaAbsorption);
+    // UE_LOG(LogTemp, Warning, TEXT("Energy: %f, Distance: %f"), Energy, Distance);
     
     return {ScaledDistance / SoundSpeed, Energy};
 }

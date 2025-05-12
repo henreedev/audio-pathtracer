@@ -17,7 +17,8 @@ UFrequenSeeAudioComponent::UFrequenSeeAudioComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	bAutoActivate = true; // Make sure it activates and starts ticking
-	
+	this->FadeOut(5.0f, /*FadeVolumeLevel=*/0.0f);
+
 	bOverrideAttenuation = true;
 
 	// Create new instance of your occlusion settings object

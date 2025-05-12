@@ -71,7 +71,7 @@ private:
 	TArray<kiss_fft_cpx> InputFreq;
 	TArray<kiss_fft_cpx> IRFreq;
 	TArray<float> TimeDomainOutput;
-	
+	TArray<TArray<float>> MY_IR;
 	TArray<FFrequenSeeAudioReverbSource> Sources;
 	
 	TWeakObjectPtr<USoundSubmix> ReverbSubmix;
