@@ -417,6 +417,29 @@ void UFrequenSeeAudioComponent::Accumulate(float TimeSeconds, float Value, int32
 
 void UFrequenSeeAudioComponent::ReconstructImpulseResponse()
 {
+	// const TArray<float>& EnergyNorms = EnergyBuffer;
+	// TArray<float>& ImpulseResponse = ImpulseBuffer[0];
+	// ImpulseResponse.SetNumZeroed(ImpulseResponse.Num());
+	// const float Pi4 = FMath::Sqrt(4.0f * PI);
+	// check(ImpulseResponse.Num() == EnergyNorms.Num());
+	// for (int32 i = 0; i < ImpulseResponse.Num(); ++i)
+	// {
+	// 	float Energy = EnergyNorms[i] / sqrtf(EnergyNorms[i] * Pi4);
+	// 	float PrevEnergy = 0.0f;
+	// 	if (i == 0)
+	// 	{
+	// 		PrevEnergy = Energy;
+	// 	}
+	// 	else if (fabsf(EnergyNorms[i - 1]) >= 0.0f && fabsf(EnergyNorms[i - 1]) >= 0.0f)
+	// 	{
+	// 		PrevEnergy = EnergyNorms[i - 1] / sqrtf(EnergyNorms[i - 1] * Pi4);
+	// 	}
+	// 	ImpulseResponse[i] = 0.5 * (PrevEnergy + Energy);
+	// }
+	// ImpulseResponse[0] = 1.0f;
+	// ImpulseBuffer[1] = ImpulseBuffer[0];
+	// EnergyBuffer.SetNumZeroed(EnergyBuffer.Num());
+	
 	constexpr float kEnergyThreshold = 1e-6f;
 	const float Pi4 = FMath::Sqrt(4.0f * PI);
 	const int32 NumSamplesPerBin = FMath::CeilToInt(BinDuration * SampleRate);
@@ -430,7 +453,7 @@ void UFrequenSeeAudioComponent::ReconstructImpulseResponse()
 		{
 			ImpulseBuffer[Channel].SetNumZeroed(NumSamples);
 		}
-		// FMemory::Memset(ImpulseResponse.GetData(), 0, sizeof(float) * ImpulseResponse.Num());
+		FMemory::Memset(ImpulseResponse.GetData(), 0, sizeof(float) * ImpulseResponse.Num());
 	 	
 		for (int32 Bin = 0; Bin < NumBins; ++Bin) 
 		{
@@ -451,30 +474,29 @@ void UFrequenSeeAudioComponent::ReconstructImpulseResponse()
 			{
 				PrevEnergy = EnergyResponse[Bin - 1] / sqrtf(EnergyNorms[Bin - 1] * Pi4);
 			}
-
+	
 			for (int32 BinSample = 0, Sample = Bin * NumSamplesPerBin; BinSample < NumBinSamples; ++BinSample, ++Sample)
 			{
 				const float Weight = static_cast<float>(BinSample) / static_cast<float>(NumSamplesPerBin);
 				const float SampleEnergy = (1.0f - Weight) * PrevEnergy + Weight * Energy;
-
+	
 				ImpulseResponse[Sample] = SampleEnergy;
 			}
 		}
-
+	
 		const float FilterCoefficient = 0.25f; // Tune between (0, 1)
 		TArray<float> Filtered;
 		Filtered.SetNumUninitialized(ImpulseResponse.Num());
-
+	
 		// First sample is unchanged (or initialize as needed)
 		Filtered[0] = ImpulseResponse[0];
 		for (int32 i = 1; i < ImpulseResponse.Num(); ++i)
 		{
 			Filtered[i] = FilterCoefficient * ImpulseResponse[i] + (1.0f - FilterCoefficient) * Filtered[i - 1];
 		}
-
+	
 		ImpulseResponse = MoveTemp(Filtered);
-		NormalizeImpulseResponse(ImpulseResponse);
-		// GenerateDummyImpulseResponse(ImpulseResponse);
+		// NormalizeImpulseResponse(ImpulseResponse);
 	}
 	
 
@@ -516,24 +538,40 @@ void UFrequenSeeAudioComponent::ReconstructImpulseResponse()
 
 void UFrequenSeeAudioComponent::NormalizeImpulseResponse(TArray<float>& IR)
 {
+	// float MaxAbs = 0.f;
+	// for (float Sample : IR)
+	// {
+	// 	MaxAbs = FMath::Max(MaxAbs, FMath::Abs(Sample));
+	// }
+	// // Step 2: Avoid division by zero
+	// if (MaxAbs > KINDA_SMALL_NUMBER)
+	// {
+	// 	for (float& Sample : IR)
+	// 	{
+	// 		Sample /= MaxAbs;
+	// 	}
+	// }
+	
 	// Step 1: Compute L2 norm (sqrt of sum of squares)
 	float SumSquares = 0.0f;
 	for (float Sample : IR)
 	{
 		SumSquares += Sample * Sample;
 	}
-
+	
 	float Norm = FMath::Sqrt(SumSquares);
-
-	UE_LOG(LogTemp, Warning, TEXT("Norm: %f"), Norm);
-
+	
+	// UE_LOG(LogTemp, Warning, TEXT("Norm: %f"), Norm);
+	
+	// IR.Insert(1.0f, IR.Num());
+	
 	
 	// Avoid division by zero
 	if (Norm < KINDA_SMALL_NUMBER)
 	{
 		return;
 	}
-
+	
 	// Step 2: Normalize each sample
 	for (float& Sample : IR)
 	{
@@ -545,7 +583,7 @@ void UFrequenSeeAudioComponent::NormalizeImpulseResponse(TArray<float>& IR)
 			// UE_LOG(LogTemp, Warning, TEXT("Sample above 0: %f"), Sample);
 			// Sample = 1.0f;
 		// }
-		Sample = 0.0f; // FIXME
+		// Sample = 0.0f; // FIXME
 	}
 }
 
