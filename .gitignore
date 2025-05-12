@@ -1,50 +1,50 @@
-# Ignore all files by default, but scan all directories.
+# Ignore everything by default
 *
+
+# But not folders — scan all directories
 !*/
 
-# Do not ignore git files in the root of the repo.
-!/.git*
+# Never ignore Git metadata
+!/.gitignore
+!/.gitattributes
 
-# Do not ignore current project's `.uproject`.
+# Do not ignore the Unreal project file
 !/*.uproject
 
-# Do not ignore source, config and plugins dirs.
+# Keep Source, Config, and Plugins
 !/Source/**
 !/Config/**
 !/Plugins/**
 
-# Ignore plugin build and binaries
+# Ignore Plugin binaries and intermediates
 Plugins/*/Binaries/
 Plugins/*/Intermediate/
 
-# Only allow .uasset and .umap files from /Content dir.
-# They're tracked by git-lfs, don't forget to track other
-# files if adding them here.
-!/Content/**/*.uasset
-!/Content/**/*.umap
+# Allow only specific asset types from Content
+# !/Content/**/*.uasset
+# !/Content/**/*.umap
 
-# Allow any files from /RawContent dir.
-# Any file in /RawContent dir will be managed by git lfs.
-!/RawContent/**/*
+# Explicitly ignore everything else in Content
+/Content/**
+# !/Content/
+# !/Content/**/*.uasset
+# !/Content/**/*.umap
 
-# OS/platform generated files.
+# Always include RawContent
+!/RawContent/**
 
-# Windows
+# OS-generated files
 ehthumbs.db
 Thumbs.db
-
-# Mac OS X
 .DS_Store
 .DS_Store?
 .AppleDouble
 .LSOverride
 ._*
-
-# Linux
 *~
 .directory
 
-# vim
+# Vim temp files
 [._]*.s[a-w][a-z]
 [._]s[a-w][a-z]
 *.un~
