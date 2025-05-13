@@ -56,7 +56,7 @@ The system is built on top of **Unreal Engine**, using two primary custom compon
 ##  Demo and Results
 
 ###  BDPT Path Visualization
-![BDPT Visualization](https://via.placeholder.com/800x400?text=BDPT+Path+Visualization)
+[▶️ Watch BDPT Path Visualization](https://drive.google.com/file/d/1Qrgv6f0Y09TMZDW3rkjjtH8V7Pt_5BQ-/view?resourcekey)
 
 ###  Impulse Response Examples
 
