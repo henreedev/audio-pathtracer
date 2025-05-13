@@ -494,9 +494,9 @@ void UFrequenSeeAudioComponent::ReconstructImpulseResponse()
 		{
 			Filtered[i] = FilterCoefficient * ImpulseResponse[i] + (1.0f - FilterCoefficient) * Filtered[i - 1];
 		}
-	
+
+		NormalizeImpulseResponse(ImpulseResponse);
 		ImpulseResponse = MoveTemp(Filtered);
-		// NormalizeImpulseResponse(ImpulseResponse);
 	}
 	
 
@@ -583,7 +583,8 @@ void UFrequenSeeAudioComponent::NormalizeImpulseResponse(TArray<float>& IR)
 			// UE_LOG(LogTemp, Warning, TEXT("Sample above 0: %f"), Sample);
 			// Sample = 1.0f;
 		// }
-		// Sample = 0.0f; // FIXME
+		UE_LOG(LogTemp, Warning, TEXT("Sample: %f"), Sample);
+		Sample = 0.0f; // FIXME
 	}
 }
 

@@ -160,16 +160,18 @@ void FFrequenSeeAudioReverbPlugin::ProcessSourceAudio(const FAudioPluginSourceIn
 	const float* LeftBufferData = ConvOutputLeft.GetData();
 	const float* RightBufferData = ConvOutputRight.GetData();
 	const float MixAlpha = 0.9f;
+	UE_LOG(LogTemp, Warning, TEXT("EXISTENCE IS REAL"));
 	for (int SampleIndex = 0; SampleIndex < FrameSize; ++SampleIndex)
 	{
-		OutBufferData[SampleIndex * 2] = FMath::Clamp(LeftBufferData[CurrSampleStartIndex + SampleIndex] * 0.01f, -1.0f, 1.0f) * MixAlpha +
+		OutBufferData[SampleIndex * 2] = FMath::Clamp(LeftBufferData[CurrSampleStartIndex + SampleIndex], -1.0f, 1.0f) * MixAlpha +
 			InBufferData[SampleIndex * 2] * (1.0f - MixAlpha);
-		OutBufferData[SampleIndex * 2 + 1] = FMath::Clamp(RightBufferData[CurrSampleStartIndex + SampleIndex] * 0.01f, -1.0f, 1.0f) * MixAlpha +
+		OutBufferData[SampleIndex * 2 + 1] = FMath::Clamp(RightBufferData[CurrSampleStartIndex + SampleIndex], -1.0f, 1.0f) * MixAlpha +
 			InBufferData[SampleIndex * 2 + 1] * (1.0f - MixAlpha);
 	}
 	
 	// copy input to output
 	// FMemory::Memcpy(OutBufferData, InputData.AudioBuffer->GetData(), sizeof(float) * FrameSize * 2);
+	// FMemory::Memset(OutBufferData, 0, sizeof(float) * FrameSize * 2);
 }
 
 void FFrequenSeeAudioReverbPlugin::ConvolveFFT(const TArray<float>& IR, const TArray<float>& Input, TArray<float>& Output)

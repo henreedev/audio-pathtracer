@@ -145,9 +145,9 @@ private:
 	float DrawSegmentedLineAdvanced(const FVector& Start, const FVector& End, float Speed, FColor Color,
 							float DrawDelay, bool bPersistent = true);
 	const int DEBUG_RAY_FPS = 45; 
-	static constexpr float VISUALIZE_DURATION = 10.0f;
+	static constexpr float VISUALIZE_DURATION = 0.0f;
 	float VisualizeTimer = 0.0f;
-	static constexpr int DEBUG_RAY_COUNT = 25;
+	static constexpr int DEBUG_RAY_COUNT = 0;
 	static constexpr int USED_RAY_COUNT = 1000;
 	const bool TickVisualization = false;
 public:
