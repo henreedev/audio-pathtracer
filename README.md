@@ -52,7 +52,6 @@ The system is built on top of **Unreal Engine**, using two primary custom compon
 
 ---
 
-
 ##  Demo and Results
 ### Audio Simulation 
 ![](audio_sim.gif)
@@ -63,11 +62,11 @@ The system is built on top of **Unreal Engine**, using two primary custom compon
 
 | Environment        | Original Sound | Convolved Sound |
 |--------------------|----------------|------------------|
-| Doorway            | https://drive.google.com/file/d/1XOndiOHBVuY9yK_lla46qoZtrXG0aPUq/view?resourcekey              | https://drive.google.com/file/d/1hZD_B0aA5joJuC6S6rYDFYOXpanm1xrb/view?resourcekey&usp=slides_web                |
-| Corner             | https://drive.google.com/file/d/1XOndiOHBVuY9yK_lla46qoZtrXG0aPUq/view?resourcekey              | https://drive.google.com/file/d/1T59mQEE5fXFiT9d9D4Wz23W0ZxEFHOwn/view?resourcekey&usp=slides_web                |
-| Glass Room (Near)  | https://drive.google.com/file/d/1XOndiOHBVuY9yK_lla46qoZtrXG0aPUq/view?resourcekey              | https://drive.google.com/file/d/15T34nr0x890sp03hEvnSHFjNucYuXdPc/view?resourcekey&usp=slides_web                |
-| Open Room          | https://drive.google.com/file/d/1XOndiOHBVuY9yK_lla46qoZtrXG0aPUq/view?resourcekey              | https://drive.google.com/file/d/19z8GR203gMbByVdawnfPsJsGzNlRR4gb/view?resourcekey&usp=slides_web                |
-| Small Room         | https://drive.google.com/file/d/1XOndiOHBVuY9yK_lla46qoZtrXG0aPUq/view?resourcekey              | https://drive.google.com/file/d/1-mJ5ThKbTr5upl-ekghMefR-14COYp0c/view?resourcekey                |
+| Doorway            | [Original](https://drive.google.com/file/d/1XOndiOHBVuY9yK_lla46qoZtrXG0aPUq/view?resourcekey)              | [Convolved](https://drive.google.com/file/d/1hZD_B0aA5joJuC6S6rYDFYOXpanm1xrb/view?resourcekey)&usp=slides_web                |
+| Corner             | [Original](https://drive.google.com/file/d/1XOndiOHBVuY9yK_lla46qoZtrXG0aPUq/view?resourcekey)              | [Convolved](https://drive.google.com/file/d/1T59mQEE5fXFiT9d9D4Wz23W0ZxEFHOwn/view?resourcekey)&usp=slides_web                |
+| Glass Room (Near)  | [Original](https://drive.google.com/file/d/1XOndiOHBVuY9yK_lla46qoZtrXG0aPUq/view?resourcekey)              | [Convolved](https://drive.google.com/file/d/15T34nr0x890sp03hEvnSHFjNucYuXdPc/view?resourcekey)&usp=slides_web                |
+| Open Room          | [Original](https://drive.google.com/file/d/1XOndiOHBVuY9yK_lla46qoZtrXG0aPUq/view?resourcekey)              | [Convolved](https://drive.google.com/file/d/19z8GR203gMbByVdawnfPsJsGzNlRR4gb/view?resourcekey)&usp=slides_web                |
+| Small Room         | [Original](https://drive.google.com/file/d/1XOndiOHBVuY9yK_lla46qoZtrXG0aPUq/view?resourcekey)              | [Convolved](https://drive.google.com/file/d/1-mJ5ThKbTr5upl-ekghMefR-14COYp0c/view?resourcekey)                |
 
 ---
 
@@ -86,7 +85,6 @@ The system is built on top of **Unreal Engine**, using two primary custom compon
 | **Ali**        | Paper interpretation and algorithm design      |
 
 ---
-
 
 ## Future Work
 
