@@ -24,35 +24,12 @@ float AverageArray(const TArray<FAcousticBand>& Values)
 UAudioRayTracingSubsystem::UAudioRayTracingSubsystem()
 {
 
-    // Super();
-    // Player = nullptr;
-    // for (TActorIterator<APawn> It(GetWorld()); It; ++It)
-    // {
-    //     Player = Cast<ADefaultPawn>(*It);
-    //     break; // Only need the first one
-    // }
 }
 
 void UAudioRayTracingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     UE_LOG(LogTemp, Warning, TEXT("Initializing."));
     Super::Initialize(Collection);
-    
-    // Find the first DefaultPawn in the world
-    // if (UWorld* World = GetWorld())
-    // {
-    //     UE_LOG(LogTemp, Warning, TEXT("World found: %s"), *World->GetName());
-    //     for (TActorIterator<APawn> It(World); It; ++It)
-    //     {
-    //         Player = Cast<ADefaultPawn>(UGameplayStatics::GetPlayerPawn(World, 0));
-    //         Player = Cast<ADefaultPawn>(*It);
-    //         if (Player)
-    //         {
-    //             UE_LOG(LogTemp, Log, TEXT("Player pawn found: %s"), *Player->GetName());
-    //             break;
-    //         }
-    //     }
-    // }
 }
 
 void UAudioRayTracingSubsystem::Deinitialize()
@@ -115,31 +92,6 @@ void UAudioRayTracingSubsystem::TraceAndApply(FAudioDevice* /*Device*/, const FV
     QParams.AddIgnoredActor(Src.AudioComp->GetOwner());
 
     TArray<FHitResult> Hits;
-//     for (int32 i = 0; i < NumRays; ++i)
-//     {
-//         // Uniformly jitter direction in a cone around the direct path (quick & dirty)
-//         const FVector Dir     = (SourceLoc - Listener).GetSafeNormal();
-//         const FVector Jitter  = FMath::VRandCone(Dir, FMath::DegreesToRadians(15.f));
-//         const FVector End     = Listener + Jitter * 5000.f;
-//
-//         FHitResult Hit;
-//         if (GetWorld()->LineTraceSingleByChannel(
-//                 Hit, Listener, End, ECC_Visibility, QParams))
-//         {
-//             ++BlockedRays;
-//             if (Hit.bBlockingHit) Hits.Add(Hit);
-//
-// #if WITH_EDITOR
-//             DrawDebugLine(GetWorld(), Listener, Hit.ImpactPoint, FColor::Red, false, 0.05f, 0, 0.5f);
-// #endif
-//         }
-// #if WITH_EDITOR
-//         else
-//         {
-//             DrawDebugLine(GetWorld(), Listener, End, FColor::Green, false, 0.05f, 0, 0.5f);
-//         }
-// #endif
-//     }
 }
 
 void UAudioRayTracingSubsystem::UpdateSources(float DeltaTime, bool bForceUpdate)
@@ -425,17 +377,13 @@ FPathEnergyResult UAudioRayTracingSubsystem::EvaluatePath(FSoundPath& Path) cons
         {
             BSDFFactor = Node.Material.Get()->Material->Absorption[2].Value / PI;
         }
-        // TODO Multiply cosines of angles , divide by squared distance
+        // Multiply cosines of angles , divide by squared distance
         // float GeometryTerm = (float) FMath::Cos(Node.Normal.X) * FMath::Cos(Node.Normal.X) / FMath::Square(Distance);
         // FVector Direction = NextNode.Position - Node.Position.GetSafeNormal();
-        // float cosTheta_i = FMath::Max(FVector::DotProduct(Node.Normal, Direction), 0.0f);
-        // float cosTheta_j = FMath::Max(FVector::DotProduct(NextNode.Normal, -Direction), 0.0f);
-        // float G = (cosTheta_i * cosTheta_j) / NodeDistanceSqr;
-
-        // float GeometryTerm = 1.0f / (4 * PI * NodeDistanceSqr);
-        // Energy *= BSDFFactor;
-        // Energy *= GeometryTerm;
-        // Energy *= G;
+        
+        float GeometryTerm = 1.0f / (4 * PI * NodeDistanceSqr);
+        Energy *= BSDFFactor;
+        Energy *= GeometryTerm;
         // Apply media term (equation 3)
         constexpr float AIR_ABSORPTION_FACTOR = 0.05;
         float MediaAbsorption = exp(-AIR_ABSORPTION_FACTOR * NodeDistance);
@@ -446,23 +394,13 @@ FPathEnergyResult UAudioRayTracingSubsystem::EvaluatePath(FSoundPath& Path) cons
         if (Energy > USED_RAY_COUNT)
         {
             int j = 1;
-            // UE_LOG(LogTemp, Warning, TEXT("Energy > USED_RAY_COUNT!"));
-            // UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, NodeDistance);
-            // UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, NodeDistanceSqr);
-            // UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, Distance);
-            // UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, BSDFFactor);
-            // UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, GeometryTerm);
-            // UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, MediaAbsorption);
-            // UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, Energy);
-            // UE_LOG(LogTemp, Warning, TEXT("Node %d: %f"), i, Probability);
         }
         // Log Everything
-        
         
     }
 
     // Clamp energy
-    // Energy = FMath::Min(Energy, 1.0f);
+    Energy = FMath::Min(Energy, 1.0f);
 
     // Un-normalize energy (FIXME)
     Energy *= 10.f;
@@ -471,8 +409,6 @@ FPathEnergyResult UAudioRayTracingSubsystem::EvaluatePath(FSoundPath& Path) cons
     Path.TotalLength = Distance;
     Path.EnergyContribution = Energy;
 
-    // UE_LOG(LogTemp, Warning, TEXT("Energy: %f, Distance: %f"), Energy, Distance);
-    
     return {ScaledDistance / SoundSpeed, Energy};
 }
 
@@ -560,28 +496,10 @@ float UAudioRayTracingSubsystem::DrawSegmentedLine(FVector& Start, FVector& End,
     const float DELTATIME = 1.0f / DEBUG_RAY_FPS;
     FVector Increment = Dir * Speed * DELTATIME;
     float DistIncrement = Increment.Length();
-    // UE_LOG(LogTemp, Warning, TEXT("DistIncrement: %f"), DistIncrement);
-    // UE_LOG(LogTemp, Warning, TEXT("Total Launches: %f"), (Dist / DistIncrement));
-
-    // Log all variables
-    // UE_LOG(LogTemp, Warning, TEXT("Start: %s"), *Start.ToString());
-    // UE_LOG(LogTemp, Warning, TEXT("End: %s"), *End.ToString());
-    // UE_LOG(LogTemp, Warning, TEXT("Speed: %f"), Speed);
-    // UE_LOG(LogTemp, Warning, TEXT("Dist: %f"), Dist);
-    // UE_LOG(LogTemp, Warning, TEXT("Dir: %s"), *Dir.ToString());
-    // UE_LOG(LogTemp, Warning, TEXT("CurrentPos: %s"), *CurrentPos.ToString());
-    // UE_LOG(LogTemp, Warning, TEXT("DrawDelay: %f"), DrawDelay);
-    // UE_LOG(LogTemp, Warning, TEXT("bPersistent: %d"), bPersistent);
-    // UE_LOG(LogTemp, Warning, TEXT("Color: %s"), *Color.ToString());
-    // UE_LOG(LogTemp, Warning, TEXT("DELTATIME: %f"), DELTATIME);
-    // UE_LOG(LogTemp, Warning, TEXT("Increment: %s"), *Increment.ToString());
-    // UE_LOG(LogTemp, Warning, TEXT("DistIncrement: %f"), DistIncrement);
-    
     
     float TimePassed = 0.0f;
     float DistTravelled = 0.f;   
     auto World = GetWorld();
-    // UE_LOG(LogTemp, Warning, TEXT("Start: %s"), *Start.ToString());
     // Simulate ticks with fixed delta time, drawing a ray segment on each tick with delay and length based on time passed
     while (DistTravelled < Dist)
     {
@@ -596,7 +514,7 @@ float UAudioRayTracingSubsystem::DrawSegmentedLine(FVector& Start, FVector& End,
         // Draw ray segment with delay equal to total time passed 
         FTimerHandle TimerHandle;
         float Delay = TimePassed;
-	    // UE_LOG(LogTemp, Warning, TEXT("Delay: %f"), Delay);
+        UE_LOG(LogTemp, Warning, TEXT("Delay: %f"), Delay);
         World->GetTimerManager().SetTimer(
         	TimerHandle,
         	FTimerDelegate::CreateLambda([=, this]()
@@ -631,65 +549,6 @@ float UAudioRayTracingSubsystem::DrawSegmentedLine(FVector& Start, FVector& End,
     return TimePassed;
 }
 
-// float UAudioRayTracingSubsystem::DrawSegmentedLine(const FVector& Start, const FVector& End, float Speed, FColor Color,
-//                                                    float DrawDelay, bool bPersistent) const
-// {
-//     // Difference vector
-//     const FVector Diff = End - Start;
-//     const FVector Dir = Diff.GetSafeNormal();
-//     const float Dist = Diff.Length();
-//     FVector CurrentPos = Start;
-//
-//     const float DELTATIME = 1.0f / DEBUG_RAY_FPS;
-//     FVector Increment = Dir * Speed * DELTATIME;
-//
-//     float TimePassed = 0.0f;
-//     auto World = GetWorld();
-//
-//     DrawDebugLine(
-//         World,
-//         Start,
-//         End,
-//         Color,
-//         bPersistent,
-//             1000.f,
-//         0,
-//         3.0f
-//     );
-//     
-//     // // Simulate ticks with fixed delta time, drawing a ray segment on each tick with delay and length based on time passed
-//     // while ((CurrentPos - Start).Length() < Dist)
-//     // {
-//     //     // Find end of ray segment
-//     //     FVector NextPos = CurrentPos + Increment;
-//     //     if (NextPos.Length() >= Dist)
-//     //     {
-//     //         NextPos = End;
-//     //     }
-//     //     
-//     //     // Draw ray segment with delay equal to total time passed 
-//     //     // FTimerHandle TimerHandle;
-//     //     // float Delay = TimePassed;
-// 	   //
-//     //     // DrawDebugLine(
-//     //     //     World,
-//     //     //     CurrentPos,
-//     //     //     NextPos,
-//     //     //     Color,
-//     //     //     bPersistent,
-//     //     //         1000.f,
-//     //     //     0,
-//     //     //     1.0f
-//     //     // );
-//     //
-//     //     // Increment current position
-//     //     CurrentPos = NextPos;
-//     //
-//     //     // Increment time passed
-//     //     TimePassed += DELTATIME;
-//     // }
-//     return TimePassed;
-// }
 
 /**
  * Given an FSoundPath, visualizes its entire travel over the course of the given duration.
