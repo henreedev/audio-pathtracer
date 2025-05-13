@@ -39,13 +39,13 @@ The system is built on top of **Unreal Engine**, using two primary custom compon
   - **Air absorption**
 - Fills a 1-second **energy buffer**, which is transformed into an **impulse response**
 
-### ��️ Reverb Plugin (FFT Convolution)
+### Reverb Plugin (FFT Convolution)
 - Takes the impulse response and performs **real-time FFT convolution**
 - Applies the reverb to **dry audio input**
 - Updates as the environment or listener changes
 - Runs in sync with the UE audio thread for interactive feedback
 
-### �� Offline Python Convolution Script
+### Offline Python Convolution Script
 - Allows processing of **entire audio files** using simulated IRs
 - Integrated with the Unreal Engine plugin to import and export IRs and dry or wet signals
 - Useful for testing or generating reverberant audio clips outside Unreal
@@ -75,7 +75,7 @@ The system is built on top of **Unreal Engine**, using two primary custom compon
 
 ---
 
-## 🛠 Contributions Summary
+## Contributions Summary
 
 | Member         | Contributions                                  |
 |----------------|------------------------------------------------|
