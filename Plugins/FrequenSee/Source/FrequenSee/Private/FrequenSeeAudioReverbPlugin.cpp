@@ -167,10 +167,6 @@ void FFrequenSeeAudioReverbPlugin::ProcessSourceAudio(const FAudioPluginSourceIn
 		OutBufferData[SampleIndex * 2 + 1] = FMath::Clamp(RightBufferData[CurrSampleStartIndex + SampleIndex], -1.0f, 1.0f) * MixAlpha +
 											 InBufferData[SampleIndex * 2 + 1] * (1.0f - MixAlpha);
 	}
-
-	// copy input to output
-	// FMemory::Memcpy(OutBufferData, InputData.AudioBuffer->GetData(), sizeof(float) * FrameSize * 2);
-	// FMemory::Memset(OutBufferData, 0, sizeof(float) * FrameSize * 2);
 }
 
 void FFrequenSeeAudioReverbPlugin::ConvolveFFT(const TArray<float> &IR, const TArray<float> &Input, TArray<float> &Output)
@@ -186,23 +182,6 @@ void FFrequenSeeAudioReverbPlugin::ConvolveFFT(const TArray<float> &IR, const TA
 	FMemory::Memcpy(InputPadded.GetData(), Input.GetData(), sizeof(float) * InputSize);
 
 	FMemory::Memcpy(IRPadded.GetData(), IR.GetData(), sizeof(float) * IRSize);
-
-	// Allocate KissFFT configs
-	// kiss_fftr_cfg ForwardCfg = kiss_fftr_alloc(FFTSize, 0, nullptr, nullptr);
-	// kiss_fftr_cfg InverseCfg = kiss_fftr_alloc(FFTSize, 1, nullptr, nullptr);
-
-	// Allocate FFT buffers
-	// TArray<kiss_fft_cpx> InputFreq;
-	// InputFreq.SetNumZeroed(NumFreqBins);
-
-	// TArray<kiss_fft_cpx> IRFreq;
-	// IRFreq.SetNumZeroed(NumFreqBins);
-
-	// TArray<kiss_fft_cpx> OutputFreq;
-	// OutputFreq.SetNumZeroed(NumFreqBins);
-
-	// TArray<float> TimeDomainOutput;
-	// TimeDomainOutput.SetNumZeroed(FFTSize);
 
 	// Perform FFTs
 	kiss_fftr(ForwardCfg, InputPadded.GetData(), InputFreq.GetData());
@@ -232,42 +211,6 @@ void FFrequenSeeAudioReverbPlugin::ConvolveFFT(const TArray<float> &IR, const TA
 	// Resize and copy the valid convolution output
 	FMemory::Memcpy(Output.GetData() + (IRSize - 1), TimeDomainOutput.GetData() + (IRSize - 1), FrameSize * sizeof(float));
 }
-
-// void FFrequenSeeAudioReverbPlugin::ConvolveFFT(const TArray<float>& IR, const TArray<float>& Input, TArray<float>& Output)
-// {
-// 	const int BlockSize = 1024;
-// 	const int BlockSizeMin = 100;
-// 	Convolver.init(BlockSize, IR.GetData(), IR.Num());
-// 	TArray<float> InBuf;
-// 	InBuf.SetNumZeroed(BlockSize);
-//
-// 	const float *In = Input.GetData();
-// 	float *Out = Output.GetData();
-//
-// 	size_t ProcessedOut = 0;
-// 	size_t ProcessedIn = 0;
-// 	while (ProcessedOut < Output.Num())
-// 	{
-// 		const size_t CurrBlockSize = BlockSizeMin + (static_cast<size_t>(rand()) % (1+(BlockSize-BlockSizeMin)));
-//
-// 		const size_t RemainingOut = Output.Num() - ProcessedOut;
-// 		const size_t RemainingIn = Input.Num() - ProcessedIn;
-//
-// 		const size_t ProcessingOut = std::min(RemainingOut, CurrBlockSize);
-// 		const size_t ProcessingIn = std::min(RemainingIn, CurrBlockSize);
-//
-// 		FMemory::Memset(InBuf.GetData(), 0, InBuf.Num() * sizeof(float));
-// 		if (ProcessingIn > 0)
-// 		{
-// 			FMemory::Memcpy(InBuf.GetData(), &In[ProcessedIn], ProcessingIn * sizeof(float));
-// 		}
-//
-// 		Convolver.process(InBuf.GetData(), &Out[ProcessedOut], ProcessingOut);
-//
-// 		ProcessedOut += ProcessingOut;
-// 		ProcessedIn += ProcessingIn;
-// 	}
-// }
 
 void NormalizeImpulseResponse(TArray<float> &IR)
 {
