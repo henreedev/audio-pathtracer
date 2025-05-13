@@ -1,4 +1,7 @@
 ﻿#include "AudioRayTracingSubsystem.h"
+
+#include <unordered_map>
+
 #include "Kismet/GameplayStatics.h"
 #include "DrawDebugHelpers.h"
 #include "EngineUtils.h"
@@ -193,6 +196,8 @@ void UAudioRayTracingSubsystem::UpdateSource(FActiveSource& Src)
 
 
 /** -------------------------- BIDIRECTIONAL PATH TRACING --------------------------- */
+
+
 void UAudioRayTracingSubsystem::GenerateFullPaths(const FActiveSource& Src, TArray<FSoundPath>& ForwardPathsOut, TArray<FSoundPath>& BackwardPathsOut, TArray<FSoundPath>& ConnectedPathsOut, int NumRays)
 {
 
@@ -349,6 +354,8 @@ void UAudioRayTracingSubsystem::GeneratePath(const AActor* ActorToIgnore, FSound
     }
 }
 
+
+
 // Also updates the FSoundPath's TotalLength field based on calculated distance. 
 FPathEnergyResult UAudioRayTracingSubsystem::EvaluatePath(FSoundPath& Path) const
 {
@@ -410,6 +417,183 @@ FPathEnergyResult UAudioRayTracingSubsystem::EvaluatePath(FSoundPath& Path) cons
     Path.EnergyContribution = Energy;
 
     return {ScaledDistance / SoundSpeed, Energy};
+}
+
+
+
+
+
+/** -------------------------- ADDITIONS BY IS --------------------------- */
+void UAudioRayTracingSubsystem::Is_GeneratePath(const AActor* ActorToIgnore, FSoundPath& OutPath, int bounces, bool fwd)
+{
+
+    // Maximum distance of a single raycast
+    constexpr float MAX_RAYCAST_DIST = 1000000.f;
+
+    // State variables
+    FVector CurrentPos = ActorToIgnore->GetActorLocation();
+    auto Mesh = ActorToIgnore->GetComponentByClass<UStaticMeshComponent>();
+    FVector CurrentNormal = FVector::ZeroVector;
+    auto CurrentMaterial = TWeakObjectPtr<UAcousticGeometryComponent>(nullptr);
+    float CurrentProbability = 1.0f;
+    
+    // REPEAT:  
+    for (int i=0; i <= bounces; i++)
+    {
+        // 0. Add current position as a node in the path
+        FSoundPathNode Node(CurrentPos, CurrentNormal, CurrentMaterial, CurrentProbability);
+        OutPath.Nodes.Add(Node);
+        
+            // 1. Pick a random direction, calculate its probability FIXME assuming diffuse
+            FVector Dir;
+            if (CurrentNormal.IsNearlyZero())
+            {
+                Dir = FMath::VRand();
+                float PDF = 1.0f / (4.0f * PI);
+                CurrentProbability = PDF;
+            } else
+            {
+                Dir = FMath::VRandCone(CurrentNormal, FMath::DegreesToRadians(90.f));
+                // Probability of an angle out of 2PI steradians (hemisphere)
+                float CosTheta = FVector::DotProduct(Dir, CurrentNormal); // assumed normalized
+                float PDF = CosTheta / PI;
+                CurrentProbability = PDF;
+            }
+            // 3. Shoot a ray, call GeneratePath recursively at impact point
+
+            // Ignore self
+            FCollisionQueryParams QParams(TEXT("AudioRay"), /*bTraceComplex*/ false);
+            QParams.AddIgnoredActor(ActorToIgnore);
+            if (Mesh)
+            {
+                QParams.AddIgnoredComponent(Mesh);
+            }
+        
+            // Collide with various channels
+            FCollisionObjectQueryParams ObjectParams;
+            ObjectParams.AddObjectTypesToQuery(ECC_Pawn);
+            ObjectParams.AddObjectTypesToQuery(ECC_WorldStatic); // covers walls/floors
+            ObjectParams.AddObjectTypesToQuery(ECC_WorldDynamic); // covers dynamic props
+
+            // Store hit result
+            FHitResult H;
+
+            // Raycast in chosen direction
+            if (GetWorld()->LineTraceSingleByObjectType(
+                H, CurrentPos, CurrentPos + Dir * MAX_RAYCAST_DIST, ObjectParams, QParams
+                ))
+            {
+                // 4. If hit, update current position and normal
+                CurrentPos = H.ImpactPoint + 0.1 * H.ImpactNormal;
+                CurrentNormal = H.ImpactNormal;
+                CurrentMaterial = H.GetActor()->FindComponentByClass<UAcousticGeometryComponent>();
+            }
+    }
+
+    //add path to array of paths corresponding to this number of bounces
+    if (fwd)
+    {
+        subpathsOfBounceFwd[bounces].emplace_back(OutPath);
+    }
+    else
+    {
+        subpathsOfBounceBwd[bounces].emplace_back(OutPath);
+    }
+}
+
+float getPathGenProbability(FSoundPath& Path)
+{
+    float prod = 1.f;
+    for (auto node : Path.Nodes)
+    {
+        prod *= node.Probability;
+    }
+    return prod;
+}
+
+/*Connect every bounce of every possible sample in forward dir with every bounce of every possible sample in backward dir (see Equation 12)*/
+void UAudioRayTracingSubsystem::Is_NaiveConnections()
+{
+    //for each bounce in the forward dir 
+    for (int i=0; i < maxBounces; i++)
+    {
+        // for each i-bounce path in forward dir
+        for (int pathsF = 0; pathsF < bounceToSamples[i]; pathsF++)
+        {
+            auto pathF = subpathsOfBounceFwd[i][pathsF];
+            //for each bounce in backward dir
+            for (int j=0; j < maxBounces; j++)
+            {
+                // for each i-bounce path in forward dir
+                for (int pathsB = 0; pathsB < bounceToSamples[j]; pathsB++)
+                {
+                    auto pathB = subpathsOfBounceFwd[j][pathsB];
+                    FSoundPath connectedPath;
+                        //if connection is successful
+                    if (ConnectSubpaths(pathF, pathB, connectedPath))
+                    {
+                        samples[i][j].emplace_back(connectedPath);
+                        totalSamples++;
+                    }
+                }
+            }
+        }
+    }
+}
+
+float getPdf(FSoundPathNode a, FSoundPathNode b)
+{
+    return 0.9;     //hardcoding for now
+}
+
+float UAudioRayTracingSubsystem::getExpectedWeight(int fwdNode, int bwdNode)
+{
+    float sum = 0.f;
+    for (int i=0; i < fwdNode; i++)
+    {
+        for (int j=0; j < bwdNode; j++)
+        {
+            float Cj = samples[i][j].size()/totalSamples;
+            float avgProb = 0.f;
+            for (FSoundPath path : samples[i][j])
+            {
+                avgProb += getPathGenProbability(path);
+            }
+            avgProb /= 3.f;
+            sum += Cj * avgProb;
+        }
+    }
+
+    return sum;
+}
+
+
+
+//The weight considers other strategies that could have produced the same path.
+float UAudioRayTracingSubsystem::MISEnergy(int i)
+{
+    int N = totalSamples;
+    std::unordered_map<int,int> weightsMap{};
+    
+    float outerSum = 0.f;
+    for (int j = 0; j < i; ++j)
+    {
+        float Cj = samples[i][j].size()/totalSamples;
+        float expectedWeight = getExpectedWeight(i, j);
+
+        float innerSum = 0.f;
+        
+        for (int k = 0; k < samples[i][j].size(); ++k)
+        {
+            FSoundPath sample = samples[i][j][k];
+            float prob = getPathGenProbability(sample);
+            float estimator = EvaluatePath(sample).Gain/prob;
+            float weight = Cj * prob;       //not totally confident in using Cj here
+            innerSum += weight * estimator;
+        }
+        outerSum += innerSum/Cj;
+    }
+    return outerSum/(float) N;
 }
 
 /** -------------------------- PATH VISUALIZATION --------------------------- */

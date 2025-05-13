@@ -1,6 +1,8 @@
 ﻿#pragma once
 
 #pragma once
+#include <unordered_map>
+
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "AcousticGeometryComponent.h"
@@ -64,7 +66,9 @@ struct FSoundPathNode
 	TWeakObjectPtr<UAcousticGeometryComponent> Material;
 
 	// Probability
-	float Probability = 0.f;	
+	float Probability = 0.f;
+	float bounceNum;
+	float EnergyContribution = 1.f;
 };
 
 USTRUCT()
@@ -85,8 +89,6 @@ class FREQUENSEE_API UAudioRayTracingSubsystem : public UWorldSubsystem, public 
 	GENERATED_BODY()
 
 public:
-	
-	
 	UAudioRayTracingSubsystem();
 	
 	/* --- WorldSubsystem overrides --- */
@@ -120,6 +122,29 @@ private:
 
 	TWeakObjectPtr<APawn> PlayerPawn;
 	/** --- BIDIRECTIONAL PATH TRACING METHODS --- */
+
+
+	//stuff Is added
+		//key variables and data structs
+	int maxBounces = 10;
+	int sampleBudget = 100;
+	int totalSamples = 0;
+	std::unordered_map<int,int> bounceToSamples{};
+	std::unordered_map<int,std::vector<FSoundPath>> subpathsOfBounceFwd{}, subpathsOfBounceBwd{};
+	std::vector<std::vector<std::vector<FSoundPath>>> samples{};
+		//preparation step
+	void allocateSamples();
+		//trace step
+	void Is_GeneratePath(const AActor* ActorToIgnore, FSoundPath& OutPath, int bounces, bool fwd);
+		//connect step
+	void Is_NaiveConnections();
+	float getExpectedWeight(int fwdNode, int bwdNode);
+	float MISEnergy(int i);
+	
+		//optimization step
+
+
+	
 	void GeneratePath(const AActor* ActorToIgnore, FSoundPath& OutPath) const;
 	bool ConnectSubpaths(FSoundPath& ForwardPath, FSoundPath& BackwardPath, FSoundPath& OutPath);
 	void GenerateFullPaths(const FActiveSource& Src, TArray<FSoundPath>& ForwardPathsOut, TArray<FSoundPath>& BackwardPathsOut, TArray<FSoundPath>& ConnectedPathsOut, int NumRays = USED_RAY_COUNT); 
